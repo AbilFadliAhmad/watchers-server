@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Watchers Control Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-950 text-white min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+
+        <!-- Header Modal/Form -->
+        <div class="text-center mb-6">
+            <div class="w-12 h-12 bg-indigo-950 border border-indigo-800/50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-indigo-400">
+                <i data-lucide="shield-check" class="w-6 h-6"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-100">Portal Masuk System</h2>
+            <p class="text-xs text-gray-400 mt-1">Gunakan akun Dosen, Direktur, atau Developer</p>
+        </div>
+
+        <!-- Alert Error Message -->
+        <div id="alert-error" class="hidden mb-4 p-3 bg-rose-950/80 border border-rose-800 text-rose-300 text-xs rounded-xl flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+            <span id="alert-text">Username atau sandi salah.</span>
+        </div>
+
+        <!-- Form Login -->
+        <form id="login-form" onsubmit="handleLogin(event)" class="space-y-2">
+            <!-- Input Username -->
+            <div>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                    </span>
+                    <input type="text" id="username" required autocomplete="username"
+                        class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition"
+                        placeholder="Masukkan username">
+                </div>
+            </div>
+
+            <!-- Input Password dengan Toggle Visibility -->
+            <div>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                        <i data-lucide="key-round" class="w-4 h-4"></i>
+                    </span>
+                    <input type="password" id="password" required autocomplete="current-password"
+                        class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 pl-9 pr-10 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition"
+                        placeholder="Masukkan sandi">
+
+                    <!-- Tombol Toggle Sandi -->
+                    <button type="button" onclick="togglePasswordVisibility()"
+                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-300 focus:outline-none">
+                        <i id="eye-icon" data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="btn-submit"
+                class="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-600/20">
+                <i data-lucide="log-in" class="w-4 h-4"></i>
+                <span>Masuk Sekarang</span>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // 1. Fungsi Toggle Intip Sandi
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eye-icon');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
+        // 2. Handler Kirim Form Login via Async Fetch
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const usernameInput = document.getElementById('username').value.trim();
+            const passwordInput = document.getElementById('password').value;
+            const alertBox = document.getElementById('alert-error');
+            const alertText = document.getElementById('alert-text');
+            const btnSubmit = document.getElementById('btn-submit');
+
+            alertBox.classList.add('hidden');
+            btnSubmit.disabled = true;
+            btnSubmit.classList.add('opacity-70');
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: usernameInput,
+                        password: passwordInput
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Redirect ke dashboard utama setelah login sukses
+                    window.location.href = '/';
+                } else {
+                    alertText.innerText = data.detail || 'Terjadi kesalahan login.';
+                    alertBox.classList.remove('hidden');
+                }
+            } catch (error) {
+                alertText.innerText = 'Gagal terhubung ke server.';
+                alertBox.classList.remove('hidden');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.classList.remove('opacity-70');
+            }
+        }
+    </script>
+</body>
+</html>
