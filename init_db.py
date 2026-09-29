@@ -2,26 +2,26 @@
 import sqlite3
 from auth import hash_password
 
+# --- DATABASE SETUP (SQLite) ---
+import sqlite3
+from auth import hash_password
+
 def init_db():
-    # Pastikan nama file database konsisten (watchers.db)
     conn = sqlite3.connect("watchers.db")
     cursor = conn.cursor()
 
-    # 1. Aktifkan fitur Foreign Key di SQLite
     cursor.execute("PRAGMA foreign_keys = ON;")
 
-    # 2. Buat Tabel rooms
+    # 1. Tabel rooms
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL
         )
     """)
-
-    # 3. Buat Room Awal ('teachers')
     cursor.execute("INSERT OR IGNORE INTO rooms (name) VALUES ('teachers')")
 
-    # 4. Buat Tabel users dengan Foreign Key menunjuk ke rooms(name)
+    # 2. Tabel users
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,18 +33,30 @@ def init_db():
         )
     """)
 
-    # 5. Buat Tabel stream_settings (Pengaturan Mode Grid & Fullscreen)
+    # 3. Tabel stream_settings
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS stream_settings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mode TEXT UNIQUE NOT NULL CHECK(mode IN ('grid', 'fullscreen')),
             quality INTEGER NOT NULL,
-            scale TEXT NOT NULL,
+            scale_width INTEGER NOT NULL,
+            scale_height INTEGER NOT NULL,
             interval REAL NOT NULL
         )
     """)
 
-    # 6. Tambahkan akun default awal jika database kosong
+    # 4. TABEL BARU: clients (Menyimpan Perangkat Unik & Status Lock)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS clients (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            is_locked INTEGER DEFAULT 0,
+            message TEXT DEFAULT '',
+            password TEXT DEFAULT ''
+        )
+    """)
+
+    # 5. Data Akun Default
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
         default_users = [
@@ -57,15 +69,15 @@ def init_db():
             default_users,
         )
 
-    # 7. Tambahkan konfigurasi default awal untuk 'grid' dan 'fullscreen'
+    # 6. Data Stream Settings Default (5 Kolom)
     default_settings = [
-        ("grid", 50, "640x360", 5.0),  # Grid: 5 detik/frame
-        ("fullscreen", 70, "1280x720", 0.066),  # Fullscreen: ~15 FPS (1/15)
+        ("grid", 50, 640, 360, 5.0),          # Grid: 5 detik/frame
+        ("fullscreen", 70, 1280, 720, 0.066),  # Fullscreen: ~15 FPS
     ]
     cursor.executemany(
         """
-        INSERT OR IGNORE INTO stream_settings (mode, quality, scale, interval)
-        VALUES (?, ?, ?, ?)
+        INSERT OR IGNORE INTO stream_settings (mode, quality, scale_width, scale_height, interval)
+        VALUES (?, ?, ?, ?, ?)
         """,
         default_settings,
     )

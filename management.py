@@ -1,8 +1,9 @@
 import sqlite3
 from typing import Optional
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from pydantic import BaseModel, Field, main
 from auth import hash_password
+from auth_middleware import get_current_user
 
 router = APIRouter(prefix="/api", tags=["Management"])
 DB_NAME = "watchers.db"
@@ -16,6 +17,7 @@ async def get_all_rooms():
     rooms = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return {"status": "success", "data": rooms}
+
 async def get_all_users():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -27,7 +29,7 @@ async def get_all_users():
     conn.close()
     return {"status": "success", "data": users}
 
-# --- HELPER : GET DATA STREAMINGS ---
+# --- HELPER : GET DATA CONFIG STREAMING ---
 def fetch_stream_config_from_db():
     """Mengambil konfigurasi dari SQLite dan menyusunnya ke dict RAM."""
     config = {}
@@ -35,20 +37,14 @@ def fetch_stream_config_from_db():
         conn = sqlite3.connect("watchers.db")
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT mode, quality, scale, interval FROM stream_settings"
+            "SELECT mode, quality, scale_width, scale_height, interval FROM stream_settings"
         )
         rows = cursor.fetchall()
         conn.close()
 
         for row in rows:
-            mode, quality, scale_str, interval = row
-            # Konversi string "640x360" menjadi list [640, 360]
-            scale = (
-                [int(x) for x in scale_str.split("x")]
-                if "x" in scale_str
-                else [640, 360]
-            )
-
+            mode, quality, scale_width, scale_height, interval = row
+            scale = ([int(scale_width), int(scale_height)])
             config[mode] = {
                 "quality": quality,
                 "scale": scale,
@@ -69,7 +65,8 @@ def fetch_stream_config_from_db():
 
 # --- PYDANTIC SCHEMAS ---
 class RoomCreateSchema(BaseModel):
-    name: str = Field(..., min_length=2, example="lab_komputer_1")
+    name: str = Field(..., min_length=2, example="lab_komputer_1") # type: ignore
+    
 class UserCreateSchema(BaseModel):
     username: str = Field(..., min_length=3, example="dosen_pembimbing")
     password: str = Field(..., min_length=3, example="password123")
@@ -384,3 +381,147 @@ async def update_user(user_id: int, user_data: UserUpdateSchema):
 
     return {"status": "success", "message": "Data user berhasil diperbarui."}
 
+# --- ROUTE ENDPOINT API ---
+@router.put("/stream-settings")
+async def api_update_stream_settings(request: Request, response: Response, payload: dict):
+    """
+    Payload: { "grid": { quality, scale_width, scale_height, interval },
+    "fullscreen": { ... } }
+    """
+    # 1. Proteksi Autentikasi Role
+    # Ganti dengan fungsi middleware auth Anda
+    user = await get_current_user(request, response)
+    if user.get("role") not in ["direktur", "developer"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized",
+        )
+    
+    conn = sqlite3.connect("watchers.db")
+    cursor = conn.cursor()
+    try:
+        # 0. Persiapkan data payload
+        data = payload
+    
+        # 1. Update Mode Grid
+        if "grid" in data:
+            grid = data["grid"]
+            cursor.execute(
+                """
+                UPDATE stream_settings
+                SET quality = ?, scale_width = ?, scale_height = ?, interval = ?
+                WHERE mode = 'grid'
+            """,
+                (
+                    grid["quality"],
+                    grid["scale_width"],
+                    grid["scale_height"],
+                    grid["interval"],
+                ),
+            )
+
+        # 2. Update Mode Fullscreen
+        if "fullscreen" in data:
+            fs = data["fullscreen"]
+            cursor.execute(
+                """
+                UPDATE stream_settings
+                SET quality = ?, scale_width = ?, scale_height = ?, interval = ?
+                WHERE mode = 'fullscreen'
+            """,
+                (
+                    fs["quality"],
+                    fs["scale_width"],
+                    fs["scale_height"],
+                    fs["interval"],
+                ),
+            )
+        conn.commit()
+
+        # 3. Mengubah variabel global STREAM_CONFIG di RAM & memancarkan via Socket.IO
+        from main import broadcast_stream_config
+        await broadcast_stream_config()
+
+        # 4. Kembalikan response sukses
+        return {
+            "status": "success",
+            "message": "Konfigurasi stream berhasil diperbarui dan disiarkan.",
+        }
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Gagal memperbarui konfigurasi: {str(e)}"
+        )
+    finally:
+            conn.close()
+
+def update_client_name_in_db(device_id: str, new_name: str):
+    """
+    Memperbarui kolom 'name' untuk device_id tertentu pada tabel 'clients'.
+    """
+    conn = sqlite3.connect("watchers.db")
+    cursor = conn.cursor()
+    try:
+        print(f"[DEBUG] Updating client name in DB: device_id={device_id}, new_name={new_name}")
+        cursor.execute(
+            """
+            UPDATE clients
+            SET name = ?
+            WHERE id = ?
+            """,
+            (new_name, device_id),
+        )
+        conn.commit()
+        cursor.execute("SELECT * FROM clients")
+    except Exception as e:
+        conn.rollback()
+        print(f"[!] Error update_client_name_in_db: {e}", flush=True)
+        raise e
+    finally:
+        conn.close()
+
+class RenameClientSchema(BaseModel):
+    device_id: str
+    new_name: str
+
+@router.put("/clients/rename")
+async def api_rename_client(request: Request, payload: RenameClientSchema):
+    """
+    Endpoint untuk mengubah nama perangkat berdasarkan device_id (sid).
+    """
+    if not payload.device_id or not payload.new_name.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Device ID dan Nama Baru harus diisi."
+        )
+
+    try:
+        # 1. Update nama di SQLite Database
+        update_client_name_in_db(payload.device_id, payload.new_name.strip())
+
+        # 2. Update status in-memory RAM (connected_students)
+        from main import connected_students, sio
+        if payload.device_id in connected_students:
+            connected_students[payload.device_id]["name"] = payload.new_name.strip()
+
+        # 3. Siarkan perubahan ke seluruh Dashboard Guru secara real-time
+        await sio.emit(
+            "student_renamed",
+            {
+                "device_id": payload.device_id,
+                "hostname": payload.new_name.strip()
+            },
+            room="teachers"
+        )
+
+        return {
+            "status": "success",
+            "message": "Nama PC berhasil diperbarui."
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal mengubah nama PC: {str(e)}"
+        )

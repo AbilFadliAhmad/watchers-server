@@ -95,6 +95,12 @@
                         <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
                         <span>Atur Staff</span>
                     </button>
+                    
+                    <!-- FITUR BARU: Konfigurasi Stream (Tepat diatas Logout) -->
+                    <button onclick="openStreamConfigModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                        <i data-lucide="sliders" class="w-4 h-4 text-amber-400"></i>
+                        <span>Konfigurasi Stream</span>
+                    </button>
                 </div>
                 {% endif %}
 
@@ -131,7 +137,7 @@
         </button>
 
         <!-- 2. Kunci Semua -->
-        <button onclick="sendDirectCommand('all', 'lock'); document.querySelectorAll('.lock-overlay').forEach(el => el.classList.remove('hidden'));" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-yellow-950/40 border border-gray-800 hover:border-yellow-600/50 rounded-2xl group transition shadow-lg">
+        <button onclick="openLockModal('all'); document.querySelectorAll('.lock-overlay').forEach(el => el.classList.remove('hidden'));" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-yellow-950/40 border border-gray-800 hover:border-yellow-600/50 rounded-2xl group transition shadow-lg">
             <div class="w-10 h-10 rounded-xl bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
                 <i data-lucide="lock" class="w-5 h-5"></i>
             </div>
@@ -139,7 +145,7 @@
         </button>
 
         <!-- 3. Buka Semua -->
-        <button onclick="sendDirectCommand('all', 'unlock'); document.querySelectorAll('.lock-overlay').forEach(el => el.classList.add('hidden'));" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-emerald-950/40 border border-gray-800 hover:border-emerald-600/50 rounded-2xl group transition shadow-lg">
+        <button onclick="unlockScreen('all'); document.querySelectorAll('.lock-overlay').forEach(el => el.classList.add('hidden'));" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-emerald-950/40 border border-gray-800 hover:border-emerald-600/50 rounded-2xl group transition shadow-lg">
             <div class="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
                 <i data-lucide="unlock" class="w-5 h-5"></i>
             </div>
@@ -664,6 +670,283 @@
             </form>
         </div>
     </div>
+
+    <!-- Modal Konfigurasi Stream (Tinggi Maksimal 85vh) -->
+    <div id="stream-config-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+            
+            <!-- Header Modal (Fixed Top) -->
+            <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/90 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
+                        <i data-lucide="sliders" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Konfigurasi Performa Stream</h3>
+                        <p class="text-[11px] text-gray-400">Atur interval pengiriman, resolusi & FPS Agent secara terpusat</p>
+                    </div>
+                </div>
+                <button onclick="closeStreamConfigModal()" class="text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-gray-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Body Modal (Scrollable jika konten melebihi 85vh) -->
+            <div class="p-6 space-y-6 overflow-y-auto grow custom-scrollbar">
+                
+                <!-- Penjelasan Fitur -->
+                <div class="p-3.5 bg-indigo-950/40 border border-indigo-800/40 rounded-xl text-xs text-indigo-200/80 leading-relaxed">
+                    <strong class="text-indigo-300">Fungsi Fitur:</strong> Mengatur frekuensi pengiriman screenshot dan resolusi layar siswa secara terpusat. Perubahan akan disinkronkan langsung ke database & seluruh Agent aktif.
+                </div>
+
+                <!-- Peringatan Konsumsi Resource Server -->
+                <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3 text-amber-300 text-xs">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0 text-amber-400 mt-0.5"></i>
+                    <div>
+                        <span class="font-bold block mb-0.5">Peringatan Konsumsi Server:</span>
+                        Semakin pendek interval pengiriman, semakin tinggi nilai FPS, atau semakin besar resolusi gambar yang dipilih, beban CPU, RAM, dan Bandwidth server akan meningkat drastis. Sesuaikan konfigurasi dengan kapasitas server kamu.
+                    </div>
+                </div>
+
+                <!-- ================= OPSI 1: MODE GRID SETTING ================= -->
+                <div class="space-y-4 bg-gray-950/50 p-4 border border-gray-800/80 rounded-xl">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <label class="text-xs font-bold text-gray-200 flex items-center gap-2">
+                                <i data-lucide="grid" class="w-4 h-4 text-emerald-400"></i>
+                                Interval Mode Grid (Monitoring Massal)
+                            </label>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Durasi jeda antar kiriman screenshot saat tampilan grid banyak PC.</p>
+                        </div>
+                        <!-- Input Angka Manual (Tanpa Desimal) -->
+                        <div class="flex items-center gap-1.5 bg-gray-900 border border-gray-700 px-2 py-1 rounded-lg">
+                            <input type="number" id="grid-interval-num" min="1" max="60" step="1"
+                                value="{{ stream_config.grid.interval | int if stream_config and stream_config.grid else 5 }}"
+                                onchange="syncGridInput(this.value)"
+                                class="w-12 bg-transparent text-right text-xs font-bold text-emerald-400 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                            <span class="text-[10px] text-gray-400 font-medium">detik</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider Grid (Tegas Kiri vs Kanan) -->
+                    <div class="space-y-1.5">
+                        <input type="range" id="grid-interval-slider" min="1" max="60" step="1" 
+                            value="{{ stream_config.grid.interval | int if stream_config and stream_config.grid else 5 }}" 
+                            oninput="syncGridSlider(this.value)"
+                            class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+                        <div class="flex justify-between text-[10px] font-semibold">
+                            <span class="text-emerald-400 flex items-center gap-1">
+                                <i data-lucide="zap" class="w-3 h-3"></i> 1 Detik (Kiri: Super Cepat / Boros)
+                            </span>
+                            <span class="text-gray-400 flex items-center gap-1">
+                                60 Detik (Kanan: Hemat / Lambat) <i data-lucide="shield-check" class="w-3 h-3"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Dropdown & Custom Scale (Resolusi Thumbnail Grid) -->
+                    <div class="pt-2 border-t border-gray-800/60 space-y-2">
+                        <label class="text-[11px] font-semibold text-gray-300 block">Resolusi Gambar Thumbnail (Grid):</label>
+                        <select id="grid-scale-select" onchange="toggleCustomScale('grid')" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500">
+                            <option value="320x180">320 x 180 (Thumbnail Sangat Ringan)</option>
+                            <option value="480x270">480 x 270 (Thumbnail Ringan)</option>
+                            <option value="640x360" selected>640 x 360 (Standar Grid - Default)</option>
+                            <option value="854x480">854 x 480 (Grid Tajam / High-Res)</option>
+                            <option value="custom">-- Custom Resolusi Sendiri --</option>
+                        </select>
+
+                        <!-- Input Custom Scale Grid (Default Hidden) -->
+                        <div id="grid-scale-custom-container" class="hidden flex items-center gap-2 pt-1">
+                            <div class="flex-1 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                <span class="text-[10px] text-gray-400">Lebar:</span>
+                                <input type="number" id="grid-scale-w" value="640" min="100" max="3840" step="1" class="w-full bg-transparent text-xs text-white font-bold focus:outline-none">
+                                <span class="text-[10px] text-gray-500">px</span>
+                            </div>
+                            <span class="text-gray-500 text-xs font-bold">x</span>
+                            <div class="flex-1 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                <span class="text-[10px] text-gray-400">Tinggi:</span>
+                                <input type="number" id="grid-scale-h" value="360" min="100" max="2160" step="1" class="w-full bg-transparent text-xs text-white font-bold focus:outline-none">
+                                <span class="text-[10px] text-gray-500">px</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= OPSI 2: MODE FULLSCREEN SETTING ================= -->
+                <div class="space-y-4 bg-gray-950/50 p-4 border border-gray-800/80 rounded-xl">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <label class="text-xs font-bold text-gray-200 flex items-center gap-2">
+                                <i data-lucide="monitor" class="w-4 h-4 text-indigo-400"></i>
+                                Frame Rate Fullscreen / Focus (Pantau 1 PC)
+                            </label>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Jumlah frame tayangan per detik saat mengamati 1 PC secara penuh.</p>
+                        </div>
+                        <!-- Input Angka Manual (Tanpa Desimal) -->
+                        <div class="flex items-center gap-1.5 bg-gray-900 border border-gray-700 px-2 py-1 rounded-lg">
+                            <input type="number" id="fullscreen-fps-num" min="1" max="60" step="1"
+                                value="{{ (1 / stream_config.fullscreen.interval) | round | int if stream_config and stream_config.fullscreen else 15 }}"
+                                onchange="syncFullscreenInput(this.value)"
+                                class="w-12 bg-transparent text-right text-xs font-bold text-indigo-400 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                            <span class="text-[10px] text-gray-400 font-medium">FPS</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider Fullscreen (Tegas Kiri vs Kanan) -->
+                    <div class="space-y-1.5">
+                        <input type="range" id="fullscreen-fps-slider" min="1" max="10" step="1" 
+                            value="{{ (1 / stream_config.fullscreen.interval) | round | int if stream_config and stream_config.fullscreen else 15 }}"
+                            oninput="syncFullscreenSlider(this.value)"
+                            class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                        <div class="flex justify-between text-[10px] font-semibold">
+                            <span class="text-gray-400 flex items-center gap-1">
+                                <i data-lucide="shield-check" class="w-3 h-3"></i> 1 FPS (Kiri: Paling Hemat)
+                            </span>
+                            <span class="text-indigo-400 flex items-center gap-1">
+                                60 FPS (Kanan: Ultra Smooth / Boros) <i data-lucide="zap" class="w-3 h-3"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Dropdown & Custom Scale (Resolusi Fullscreen hingga 2K) -->
+                    <div class="pt-2 border-t border-gray-800/60 space-y-2">
+                        <label class="text-[11px] font-semibold text-gray-300 block">Resolusi Gambar Fullscreen (Mencapai 2K):</label>
+                        <select id="fullscreen-scale-select" onchange="toggleCustomScale('fullscreen')" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                            <option value="1280x720" selected>1280 x 720 (HD 720p - Default)</option>
+                            <option value="1600x900">1600 x 900 (HD+)</option>
+                            <option value="1920x1080">1920 x 1080 (Full HD 1080p)</option>
+                            <option value="2560x1440">2560 x 1440 (2K QHD Ultra High-Res)</option>
+                            <option value="custom">-- Custom Resolusi Sendiri --</option>
+                        </select>
+
+                        <!-- Input Custom Scale Fullscreen (Default Hidden) -->
+                        <div id="fullscreen-scale-custom-container" class="hidden flex items-center gap-2 pt-1">
+                            <div class="flex-1 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                <span class="text-[10px] text-gray-400">Lebar:</span>
+                                <input type="number" id="fullscreen-scale-w" value="1280" min="100" max="3840" step="1" class="w-full bg-transparent text-xs text-white font-bold focus:outline-none">
+                                <span class="text-[10px] text-gray-500">px</span>
+                            </div>
+                            <span class="text-gray-500 text-xs font-bold">x</span>
+                            <div class="flex-1 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                <span class="text-[10px] text-gray-400">Tinggi:</span>
+                                <input type="number" id="fullscreen-scale-h" value="720" min="100" max="2160" step="1" class="w-full bg-transparent text-xs text-white font-bold focus:outline-none">
+                                <span class="text-[10px] text-gray-500">px</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer Modal (Fixed Bottom) -->
+            <div class="px-6 py-4 border-t border-gray-800 bg-gray-900/90 flex justify-end gap-3 shrink-0">
+                <button onclick="closeStreamConfigModal()" class="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition">
+                    Batal
+                </button>
+                <button onclick="submitStreamConfig()" class="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg transition flex items-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Simpan & Sinkronkan
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Modal Input Kunci Layar -->
+    <div id="lock-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400">
+                        <i data-lucide="lock" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Kunci Layar Perangkat</h3>
+                        <p class="text-[11px] text-gray-400">Atur pesan tampilan dan kata sandi pembuka</p>
+                    </div>
+                </div>
+                <button onclick="closeLockModal()" class="text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-gray-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="lock-target-sid">
+
+                <div>
+                    <label class="text-xs font-semibold text-gray-300 block mb-1.5">Pesan Tampilan Kunci:</label>
+                    <input type="text" id="lock-message-input" value="DIKUNCI OLEH GURU" placeholder="Masukkan pesan kunci..." class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-yellow-500">
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-gray-300 block mb-1.5">Kata Sandi Pembuka (Opsional):</label>
+                    <input type="password" id="lock-password-input" placeholder="Kosongkan jika tanpa sandi" class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-yellow-500">
+                    <p class="text-[10px] text-gray-500 mt-1">Siswa dapat membuka kunci fisik PC sendiri jika memasukkan sandi ini.</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-gray-800 bg-gray-900/50 flex justify-end gap-2.5">
+                <button onclick="closeLockModal()" class="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition">
+                    Batal
+                </button>
+                <button onclick="submitLockCommand()" class="px-4 py-2 text-xs font-bold bg-yellow-600 hover:bg-yellow-500 text-white rounded-xl shadow-lg transition flex items-center gap-2">
+                    <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                    Kunci Layar
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal Ubah Nama PC -->
+    <div id="rename-pc-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
+                        <i data-lucide="edit-3" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Ubah Nama PC</h3>
+                        <p class="text-[11px] text-gray-400">Atur nama tampilan unik untuk perangkat ini</p>
+                    </div>
+                </div>
+                <button onclick="closeRenameModal()" class="text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-gray-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="rename-device-id">
+
+                <div>
+                    <label class="text-xs font-semibold text-gray-300 block mb-1.5">Nama Perangkat Baru:</label>
+                    <input type="text" id="rename-hostname-input" placeholder="Contoh: LAB1-PC05" class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500">
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-gray-800 bg-gray-900/50 flex justify-end gap-2.5">
+                <button onclick="closeRenameModal()" class="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition">
+                    Batal
+                </button>
+                <button onclick="submitRenamePC()" class="px-4 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-lg transition flex items-center gap-2">
+                    <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                    Simpan Nama
+                </button>
+            </div>
+
+        </div>
+    </div>
+
     <script>
         const socket = io();
         const activeAppsData = {}; // Menyimpan detail daftar aplikasi per SID
@@ -775,9 +1058,9 @@
                         <div class="flex justify-between items-center mb-3">
                             <span class="font-bold text-sm text-indigo-300 flex items-center gap-1.5 truncate max-w-[140px]">
                                 <i data-lucide="monitor" class="w-4 h-4 text-indigo-400 shrink-0"></i>
-                                <span class="hostname-text">${data.hostname}</span>
+                                <span class="hostname-text line-clamp-1">${data.hostname}</span>
                             </span>
-                            <span class="telemetry-badge text-[11px] bg-gray-950 px-2.5 py-1 rounded-full border border-gray-800 text-gray-300 font-mono">
+                            <span class="hidden telemetry-badge text-nowrap text-[11px] bg-gray-950 px-2.5 py-1 rounded-full border border-gray-800 text-gray-300 font-mono">
                                 CPU: ${data.telemetry.cpu}% | RAM: ${data.telemetry.ram}%
                             </span>
                         </div>
@@ -812,12 +1095,17 @@
                                 <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                             </button>
 
-                            <!-- Dropdown Menu -->
-                            <div id="dropdown-${data.sid}" class="dropdown-menu hidden absolute bottom-full left-0 right-0 mb-1.5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-30 py-1.5 backdrop-blur-md">
+                            <!-- Dropdown Menu (Muncul di Bawah Tombol) -->
+                            <div id="dropdown-${data.sid}" class="dropdown-menu hidden absolute bottom-full left-0 right-0 mt-1.5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 backdrop-blur-md">
 
                                 <!-- 1. Fullscreen View -->
                                 <button onclick="openFullscreenView('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                                     <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-blue-400"></i> Fullscreen View
+                                </button>
+
+                                <!-- BARU: 5. Ubah Nama PC -->
+                                <button onclick="openRenameModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-400"></i> Ubah Nama PC
                                 </button>
 
                                 <!-- 2. Kirim Pesan -->
@@ -825,12 +1113,12 @@
                                     <i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-400"></i> Kirim Pesan
                                 </button>
 
-                                <!-- 3. Kunjungi URL (Baru) -->
+                                <!-- 3. Kunjungi URL -->
                                 <button onclick="openUrlModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                                     <i data-lucide="globe" class="w-3.5 h-3.5 text-sky-400"></i> Kunjungi URL
                                 </button>
 
-                                <!-- 4. Ketik Otomatis / Jalankan Macro (Baru) -->
+                                <!-- 4. Ketik Otomatis / Jalankan Macro -->
                                 <button onclick="openMacroModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                                     <i data-lucide="keyboard" class="w-3.5 h-3.5 text-purple-400"></i> Ketik Otomatis
                                 </button>
@@ -838,12 +1126,12 @@
                                 <div class="border-t border-gray-800 my-1"></div>
 
                                 <!-- 5. Kunci Layar -->
-                                <button onclick="sendDirectCommand('${data.sid}', 'lock'); document.querySelector('#pc-${data.sid} .lock-overlay').classList.remove('hidden');" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-yellow-600 hover:text-white flex items-center gap-2.5 transition">
+                                <button onclick="openLockModal('${data.sid}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-yellow-600 hover:text-white flex items-center gap-2.5 transition">
                                     <i data-lucide="lock" class="w-3.5 h-3.5 text-yellow-400"></i> Kunci Layar
                                 </button>
 
                                 <!-- 6. Buka Kunci -->
-                                <button onclick="sendDirectCommand('${data.sid}', 'unlock'); document.querySelector('#pc-${data.sid} .lock-overlay').classList.add('hidden');" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-emerald-600 hover:text-white flex items-center gap-2.5 transition">
+                                <button onclick="unlockScreen('${data.sid}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-emerald-600 hover:text-white flex items-center gap-2.5 transition">
                                     <i data-lucide="unlock" class="w-3.5 h-3.5 text-emerald-400"></i> Buka Kunci
                                 </button>
 
@@ -887,7 +1175,7 @@
 
         });
 
-        // Toggle Dropdown Menu
+        // Toggle Dropdown Profile Menu
         function toggleDropdown(event, sid) {
             event.stopPropagation();
             // Tutup semua dropdown lain yang sedang terbuka
@@ -927,6 +1215,268 @@
                 dropdown.classList.add('hidden');
             }
         });
+
+        // Buka & Tutup Modal Stream Config
+        function openStreamConfigModal() {
+            const modal = document.getElementById('stream-config-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeStreamConfigModal() {
+            const modal = document.getElementById('stream-config-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // Toggle Tampilan Input Custom Scale
+        function toggleCustomScale(mode) {
+            const select = document.getElementById(`${mode}-scale-select`);
+            const container = document.getElementById(`${mode}-scale-custom-container`);
+            
+            if (select.value === 'custom') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // --- SINKRONISASI MODE GRID (1 - 60 Detik, Bulat) ---
+        function syncGridSlider(val) {
+            let num = Math.round(parseInt(val) || 5);
+            num = Math.max(1, Math.min(60, num));
+            document.getElementById('grid-interval-slider').value = num;
+            document.getElementById('grid-interval-num').value = num;
+        }
+
+        function syncGridInput(val) {
+            let num = Math.round(parseInt(val) || 1);
+            num = Math.max(1, Math.min(60, num));
+            document.getElementById('grid-interval-slider').value = num;
+            document.getElementById('grid-interval-num').value = num;
+        }
+
+        // --- SINKRONISASI MODE FULLSCREEN (1 - 60 FPS, Bulat) ---
+        function syncFullscreenSlider(val) {
+            let num = Math.round(parseInt(val) || 15);
+            num = Math.max(1, Math.min(60, num));
+            document.getElementById('fullscreen-fps-slider').value = num;
+            document.getElementById('fullscreen-fps-num').value = num;
+        }
+
+        function syncFullscreenInput(val) {
+            let num = Math.round(parseInt(val) || 1);
+            num = Math.max(1, Math.min(10, num));
+            document.getElementById('fullscreen-fps-slider').value = num;
+            document.getElementById('fullscreen-fps-num').value = num;
+        }
+
+        // --- KIRIM KONFIGURASI KE BACKEND FASTAPI ---
+        async function submitStreamConfig() {
+            const gridIntervalSec = parseInt(document.getElementById('grid-interval-num').value) || 5;
+            const fullscreenFps = parseInt(document.getElementById('fullscreen-fps-num').value) || 15;
+
+            // Hitung interval detik untuk agent dari FPS
+            const fullscreenIntervalSec = parseFloat((1 / fullscreenFps).toFixed(4));
+
+            // Ambil Resolusi Grid
+            const gridSelect = document.getElementById('grid-scale-select').value;
+            let gridW, gridH;
+            if (gridSelect === 'custom') {
+                gridW = parseInt(document.getElementById('grid-scale-w').value) || 640;
+                gridH = parseInt(document.getElementById('grid-scale-h').value) || 360;
+            } else {
+                [gridW, gridH] = gridSelect.split('x').map(Number);
+            }
+
+            // Ambil Resolusi Fullscreen
+            const fullscreenSelect = document.getElementById('fullscreen-scale-select').value;
+            let fsW, fsH;
+            if (fullscreenSelect === 'custom') {
+                fsW = parseInt(document.getElementById('fullscreen-scale-w').value) || 1280;
+                fsH = parseInt(document.getElementById('fullscreen-scale-h').value) || 720;
+            } else {
+                [fsW, fsH] = fullscreenSelect.split('x').map(Number);
+            }
+
+            // Payload yang dikirim ke Backend FastAPI
+            const payload = {
+                grid: {
+                    quality: 50,
+                    scale_width: gridW,
+                    scale_height: gridH,
+                    interval: gridIntervalSec
+                },
+                fullscreen: {
+                    quality: 70,
+                    scale_width: fsW,
+                    scale_height: fsH,
+                    interval: fullscreenIntervalSec
+                }
+            };
+
+            try {
+                const response = await fetch('/api/stream-settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    showToast('Konfigurasi Stream berhasil disimpan dan disiarkan ke seluruh Komputer!', 'success');
+                    closeStreamConfigModal();
+                } else {
+                    const err = await response.json();
+                    showToast('Gagal memperbarui: ' + (err.detail || 'Terjadi kesalahan'), 'error');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Gagal terhubung ke server.');
+            }
+        }
+
+        // Buka Modal Kunci
+        function openLockModal(targetSid) {
+            console.log("Membuka modal kunci untuk SID:", targetSid);
+            if (!targetSid) {
+                showToast("Target PC tidak valid!", 'error');
+                return;
+            }
+            document.getElementById('lock-target-sid').value = targetSid;
+            document.getElementById('lock-message-input').value = "DIKUNCI OLEH GURU";
+            document.getElementById('lock-password-input').value = "";
+            document.getElementById('lock-modal').classList.remove('hidden');
+        }
+
+        // Tutup Modal Kunci
+        function closeLockModal() {
+            document.getElementById('lock-modal').classList.add('hidden');
+        }
+
+        // Kirim Perintah Lock dari Modal
+        function submitLockCommand() {
+            const targetSid = document.getElementById('lock-target-sid').value;
+            const message = document.getElementById('lock-message-input').value.trim() || "DIKUNCI OLEH GURU";
+            const password = document.getElementById('lock-password-input').value.trim();
+
+            if (!targetSid) {
+                showToast("Gagal: Identitas target PC tidak ditemukan!", 'error');
+                return;
+            }
+
+            try {
+                const payload = {
+                    target_sid: targetSid,
+                    command: {
+                        action: 'lock',
+                        message: message,
+                        password: password
+                    }
+                };
+
+                // Kirim via Socket.IO
+                if (typeof sio !== 'undefined' && sio.connected) {
+                    sio.emit("send_command", payload);
+                } else if (typeof socket !== 'undefined' && socket.connected) {
+                    socket.emit("send_command", payload);
+                }
+
+                // Tampilkan Overlay Kunci di Card PC (Lokal UI Update)
+                if (targetSid === 'all') {
+                    document.querySelectorAll('.lock-overlay').forEach(el => el.classList.remove('hidden'));
+                } else {
+                    const cardOverlay = document.querySelector(`#pc-${targetSid} .lock-overlay`);
+                    if (cardOverlay) cardOverlay.classList.remove('hidden');
+                }
+
+                showToast("Perintah kunci layar berhasil dikirim!", 'success');
+                closeLockModal();
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal mengirim perintah kunci layar!", 'error');
+            }
+        }
+
+        // Kirim Perintah Unlock Langsung
+        function unlockScreen(targetSid) {
+            if (!targetSid) {
+                showToast("Gagal: Identitas target PC tidak valid!", 'error');
+                return;
+            }
+
+            try {
+                const payload = {
+                    target_sid: targetSid,
+                    command: { action: 'unlock' }
+                };
+
+                // Kirim via Socket.IO
+                if (typeof sio !== 'undefined' && sio.connected) {
+                    sio.emit("send_command", payload);
+                } else if (typeof socket !== 'undefined' && socket.connected) {
+                    socket.emit("send_command", payload);
+                }
+
+                // Sembunyikan Overlay Kunci di Card PC (Lokal UI Update)
+                if (targetSid === 'all') {
+                    document.querySelectorAll('.lock-overlay').forEach(el => el.classList.add('hidden'));
+                } else {
+                    const cardOverlay = document.querySelector(`#pc-${targetSid} .lock-overlay`);
+                    if (cardOverlay) cardOverlay.classList.add('hidden');
+                }
+
+                showToast("Kunci layar berhasil dibuka!", 'success');
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal mengirim perintah buka kunci!", 'error');
+            }
+        }
+
+        // Buka Modal Rename
+        function openRenameModal(deviceId, currentHostname) {
+            document.getElementById('rename-device-id').value = deviceId;
+            document.getElementById('rename-hostname-input').value = currentHostname || '';
+            document.getElementById('rename-pc-modal').classList.remove('hidden');
+        }
+
+        // Tutup Modal Rename
+        function closeRenameModal() {
+            document.getElementById('rename-pc-modal').classList.add('hidden');
+        }
+
+        // Kirim Perubahan ke Server via REST API
+        async function submitRenamePC() {
+            const deviceId = document.getElementById('rename-device-id').value;
+            const newName = document.getElementById('rename-hostname-input').value.trim();
+
+            if (!newName) {
+                showToast("Nama PC tidak boleh kosong!");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/clients/rename', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: deviceId, new_name: newName })
+                });
+
+                if (response.ok) {
+                    showToast("Nama PC berhasil diperbarui!");
+                    closeRenameModal();
+
+                    // Update nama secara langsung di UI lokal tanpa refresh
+                    const hostnameSpan = document.querySelector(`#pc-${deviceId} .hostname-text`);
+                    if (hostnameSpan) {
+                        hostnameSpan.textContent = newName;
+                    }
+                } else {
+                    const err = await response.json();
+                    showToast("Gagal memperbarui: " + (err.detail || "Terjadi kesalahan"));
+                }
+            } catch (e) {
+                console.error(e);
+                showToast("Gagal terhubung ke server.");
+            }
+        }
 
         // Inisialisasi ikon saat pertama kali dibuka
         lucide.createIcons();

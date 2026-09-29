@@ -6,10 +6,10 @@ import socketio
 import os
 import shutil
 from auth import (router as auth_router)
+from client_helper import update_clients_lock_status, upsert_client_and_get_status_and_name, verify_client_password
 from management import (router as management_router, get_all_users, get_all_rooms, fetch_stream_config_from_db)
 from auth_middleware import get_current_user
 from init_db import init_db
-import asyncio
 
 # 1. Inisialisasi Socket.IO AsyncServer (Engine ASGI)
 sio = socketio.AsyncServer(
@@ -28,14 +28,22 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Init DB
 init_db()
+STREAM_CONFIG = fetch_stream_config_from_db()
+print(f"[*] STREAM_CONFIG dimuat dari DB: {STREAM_CONFIG}")
 
 # In-memory State Management
 # Format: { sid: {"hostname": str, "telemetry": dict, "mode": str} }
 connected_students = {}
 teacher_sids = set()
 active_focus_viewers = {}
-STREAM_CONFIG = {}  # Variabel global terpusat di RAM server
 
+# --- HELPER DYNAMIC CONFIG BROADCAST (DIGUNAKAN DI FILE MANAGEMENT) ---
+async def broadcast_stream_config():
+    """Fungsi pembantu untuk reload config dari DB ke RAM dan broadcast ke seluruh client."""
+    global STREAM_CONFIG
+    STREAM_CONFIG = fetch_stream_config_from_db()
+    await sio.emit("update_config", STREAM_CONFIG)
+    print(f"[*] STREAM_CONFIG dibroadcast ulang: {STREAM_CONFIG}")
 
 # --- SOCKET.IO EVENT HANDLERS ---
 @sio.event
@@ -70,40 +78,9 @@ async def disconnect(sid):
         teacher_sids.remove(sid)
         print(f"[-] Guru terputus: {sid}")
 
-
-# --- BACKGROUND TASK: SINKRONISASI DATABASE 10 MENIT SEKALI ---
-async def config_sync_loop():
-    """Mengecek database setiap 10 menit (600 detik).
-
-    Jika Admin mengubah data di DB, RAM Server dan seluruh PC Siswa akan
-    diperbarui otomatis.
-    """
-    global STREAM_CONFIG
-    while True:
-        try:
-            # Jeda 10 menit (600 detik)
-            await asyncio.sleep(600)
-
-            # Ambil nilai terbaru dari Database SQLite
-            latest_config = fetch_stream_config_from_db()
-
-            # Jika ada perubahan dibanding data yang tersimpan di RAM Server
-            if latest_config != STREAM_CONFIG:
-                STREAM_CONFIG = latest_config
-                print(
-                    f"[*] STREAM_CONFIG diperbarui dari DB (10-Min Sync): {STREAM_CONFIG}"
-                )
-
-                # Broadcast konfigurasi terbaru ke SELURUH PC siswa yang sedang online
-                await sio.emit("update_config", STREAM_CONFIG)
-        except Exception as e:
-            print(f"[!] Error pada config_sync_loop: {e}")
-
-
-@sio.on("start_focus_view")
+@sio.on("start_focus_view") # type: ignore
 async def on_start_focus(sid, data):
     target_sid = data.get("target_sid")
-    print('wleeee', target_sid)
     if not target_sid:
         return
 
@@ -117,7 +94,7 @@ async def on_start_focus(sid, data):
         "command", {"action": "set_mode", "mode": "focus"}, to=target_sid
     )
 
-@sio.on("stop_focus_view")
+@sio.on("stop_focus_view") # type: ignore
 async def on_stop_focus(sid, data):
     target_sid = data.get("target_sid")
     if target_sid and target_sid in active_focus_viewers:
@@ -133,77 +110,130 @@ async def on_stop_focus(sid, data):
             )
 
 
-@sio.on("register_teacher")
+@sio.on("register_teacher") # type: ignore
 async def on_register_teacher(sid, data):
     """Mendaftarkan koneksi browser guru ke room 'teachers'."""
     room_name = data.get('user').get('room')
     await sio.enter_room(sid, room_name)
     await sio.save_session(sid, {'room': room_name})
     teacher_sids.add(sid)
-    # Kirimkan data konfigurasi RAM server ke client siswa yang baru mendaftar
-    await sio.emit("update_config", STREAM_CONFIG, to=sid)
 
-
-@sio.on("register_student")
+@sio.on("register_student") # type: ignore
 async def on_register_student(sid, data):
-    """Mendaftarkan client PC siswa ke memori server dan room Socket.IO."""
     hostname = data.get("hostname", "Unknown-PC")
+    device_id = data.get("device_id", hostname) # Fallback ke hostname jika device_id kosong
     student_room = hostname.split("-")[0].lower()
 
-    connected_students[sid] = {
+    # 2. Registrasi / Upsert ke Database SQLite Server & Ambil Status Lock
+    device_status = upsert_client_and_get_status_and_name(device_id, hostname)
+
+    connected_students[device_id] = {
         "sid": sid,
-        "hostname": hostname,
+        "name": device_status.get("name", hostname),
+        "device_id": device_id,
         "room": student_room,
         "telemetry": {"cpu": 0, "ram": 0, "open_windows": []},
         "mode": "grid",
     }
-    print(connected_students[sid]["hostname"])
-    # PERBAIKAN: Masukkan siswa ke room kelasnya DAN room 'teachers'
+    
     await sio.enter_room(sid, student_room)
     await sio.enter_room(sid, "teachers")
 
     target_rooms = ["teachers", student_room]
     await sio.emit(
-        "student_connected", connected_students[sid]["hostname"], room=target_rooms
+        "student_connected", device_status['name'], room=target_rooms
     )
+    
+    # PERBAIKAN: Kirimkan konfigurasi stream terbaru langsung ke PC Siswa saat baru connect
+    await sio.emit("update_config", STREAM_CONFIG, to=sid)
 
+    # 5. SINKRONISASI OTOMATIS: Jika di server terdeteksi TERKUNCI, kunci PC seketika
+    if device_status["is_locked"]:
+        print(f"[!] Client {hostname} ({device_id}) terdeteksi TERKUNCI di database server. Mengirim perintah lock...", flush=True)
+        await sio.emit(
+            "command",
+            {
+                "action": "lock",
+                "message": device_status["message"],
+            },
+            to=sid
+        )
 
-@sio.on("student_frame")
+@sio.on("student_frame") # type: ignore
 async def on_student_frame(sid, data):
     """Menerima screenshot layar & telemetri dari PC siswa, lalu menyalurkannya ke guru."""
-    if sid in connected_students:
-        connected_students[sid]["telemetry"] = data.get("telemetry", {})
-
     # Data disalurkan HANYA ke client yang berada di room 'teachers'
     payload = {
-        "sid": sid,
-        "hostname": data.get("hostname"),
+        "sid": data.get("device_id", sid), # Gunakan device_id karena unique dan tidak tergantung koneksi socket
+        "hostname": connected_students.get(data.get("device_id"), {}).get("name", "Unknown-PC"),
         "telemetry": data.get("telemetry"),
         "image": data.get("image"),  # Bytes / WebP Frame
     }
 
-    target_rooms = ['teachers', payload.get("hostname").split('-')[0].lower()]
+    target_rooms = ['teachers', str(payload.get("hostname")).split('-')[0].lower()]
     await sio.emit("update_student_card", payload, room=target_rooms)
 
-@sio.on("send_command")
+@sio.on("send_command") # type: ignore
 async def on_send_command(sid, data):
     """
     Menerima perintah remot dari Web Dashboard Guru dan meneruskannya ke Client Siswa.
-    Payload: {"target_sid": "all" | "SID_TERTENTU", "command": {"action": "lock", ...}}
+    Payload: {"target_sid": "all" | "DEVICE_ID", "command": {"action": "lock" | "unlock", ...}}
     """
-
-    command = data.get("command")
-    target_sid = data.get("target_sid")
+    command = data.get("command", {})
+    action = command.get("action")
+    raw_target = data.get("target_sid")
     target_room = (await sio.get_session(sid) or {}).get('room', '')
-    # 1. Gunakan await dan ambil key "room" dari dict user
 
-    if target_sid == "all":
-        # Kirim perintah ke seluruh client (abaikan koneksi guru)
-        await sio.emit("command", command, skip_sid=list(teacher_sids), room=target_room)
+    # 1. Tentukan target socket SID untuk penyiaran websocket
+    if raw_target == "all":
+        socket_target = "all"
     else:
-        # Kirim spesifik ke 1 PC siswa saja
-        await sio.emit("command", command, to=target_sid)
+        # Mengambil Socket SID asli dari dictionary connected_students (jika key-nya device_id)
+        student_info = connected_students.get(raw_target, {})
+        socket_target = student_info.get("sid", raw_target)
 
+    # 2. UPDATE DATABASE LOGIC (Gunakan Helper)
+    if action in ["lock", "unlock"]:
+        is_locked = (action == "lock")
+        msg = command.get("message", "DIKUNCI OLEH GURU") if is_locked else ""
+        pwd = command.get("password", "") if is_locked else ""
+
+        # Tentukan daftar device_id yang akan diupdate di DB
+        if raw_target == "all":
+            # Ambil seluruh key (device_id) dari connected_students
+            target_device_ids = list(connected_students.keys())
+        else:
+            target_device_ids = [raw_target]
+
+        # Simpan status terbaru ke database SQLite
+        update_clients_lock_status(
+            device_ids=target_device_ids,
+            is_locked=is_locked,
+            message=msg,
+            password=pwd
+        )
+
+    # 3. KIRIM PERINTAH LEWAT WEBSOCKET
+    if socket_target == "all":
+        # Kirim perintah ke seluruh client di room guru
+        await sio.emit("command", command, skip_sid=list(teacher_sids), room=target_room)
+    elif socket_target:
+        # Kirim spesifik ke 1 PC siswa saja
+        await sio.emit("command", command, to=socket_target)
+
+@sio.on("verify_unlock_password") # type: ignore
+async def on_verify_unlock_password(sid, data):
+    """
+    Menerima dan memverifikasi kata sandi yang diinputkan dari LockScreenWidget client.
+    Payload: {"device_id": "GUID_CLIENT", "password": "INPUT_PASSWORD"}
+    """
+    device_id = data.get("device_id")
+    input_password = data.get("password", "").strip()
+
+    if not device_id:
+        return {"success": False, "message": "Device ID tidak terdeteksi."}
+
+    await verify_client_password(input_password=input_password, device_id=device_id, sid=sid, sio=sio)
 
 # --- FASTAPI HTTP ROUTES ---
 @app.get("/", response_class=HTMLResponse)
@@ -224,7 +254,14 @@ async def get_dashboard(request: Request, response: Response):
             users = res_users.get('data', [])
 
         return templates.TemplateResponse(
-            request=request, name="index.html", context={"user": user, "users": users, 'rooms':rooms}
+            request=request, 
+            name="index.html", 
+            context={
+                "user": user,
+                "users": users, 
+                "rooms":rooms,
+                "stream_config": STREAM_CONFIG
+            }
         )
     except HTTPException as e:
         # Jika token tidak ada, kadaluarsa, atau invalid, redirect langsung ke halaman login
@@ -245,12 +282,12 @@ app.mount("/downloads", StaticFiles(directory=UPLOAD_DIR), name="downloads")
 @app.post("/upload-update")
 async def upload_ota_update(request: Request, file: UploadFile = File(...)):
     # Validasi ekstensi file
-    if not file.filename.endswith(".exe"):
+    if not str(file.filename).endswith(".exe"):
         raise HTTPException(
             status_code=400, detail="Hanya file .exe yang diizinkan."
         )
 
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    file_path = os.path.join(UPLOAD_DIR, file.filename) # type: ignore
 
     # Simpan file ke disk menggunakan buffer chunking
     try:
