@@ -122,14 +122,16 @@ async def on_register_teacher(sid, data):
 async def on_register_student(sid, data):
     hostname = data.get("hostname", "Unknown-PC")
     device_id = data.get("device_id", hostname) # Fallback ke hostname jika device_id kosong
-    student_room = hostname.split("-")[0].lower()
 
     # 2. Registrasi / Upsert ke Database SQLite Server & Ambil Status Lock
     device_status = upsert_client_and_get_status_and_name(device_id, hostname)
+    name = device_status.get("name", hostname)
+    student_room = name.split("-")[0].lower()
 
+    # 3. Simpan informasi PC Siswa ke in-memory state
     connected_students[device_id] = {
         "sid": sid,
-        "name": device_status.get("name", hostname),
+        "name": name,
         "device_id": device_id,
         "room": student_room,
         "telemetry": {"cpu": 0, "ram": 0, "open_windows": []},
@@ -141,7 +143,7 @@ async def on_register_student(sid, data):
 
     target_rooms = ["teachers", student_room]
     await sio.emit(
-        "student_connected", device_status['name'], room=target_rooms
+        "student_connected", name, room=target_rooms
     )
     
     # PERBAIKAN: Kirimkan konfigurasi stream terbaru langsung ke PC Siswa saat baru connect

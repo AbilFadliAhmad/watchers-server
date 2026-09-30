@@ -1,7 +1,14 @@
 function openMessageModal(sid, hostname) {
     activeSid = sid;
     document.getElementById('msg-modal-title').innerText = `Kirim Pesan ke ${hostname}`;
-    document.getElementById('msg-input').value = '';
+
+    setTimeout(() => {
+        const msgInput = document.getElementById('msg-input');
+        if (msgInput) {
+            msgInput.value = '';
+            msgInput.focus();
+        }
+    }, 50);
 
     const modal = document.getElementById('message-modal');
     modal.classList.remove('hidden');

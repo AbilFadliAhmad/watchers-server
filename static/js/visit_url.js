@@ -9,6 +9,12 @@ function openUrlModal(sid = 'all', hostname = 'Semua PC') {
 
     label.innerText = `Target: ${hostname}`;
     input.value = ''; // Reset input
+    input.focus(); // Fokus ke input saat modal dibuka
+    input.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            submitUrlCommand();
+        }
+    });
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
