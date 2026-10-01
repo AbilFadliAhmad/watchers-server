@@ -137,7 +137,7 @@ async def on_register_student(sid, data):
         "telemetry": {"cpu": 0, "ram": 0, "open_windows": []},
         "mode": "grid",
     }
-    
+
     await sio.enter_room(sid, student_room)
     await sio.enter_room(sid, "teachers")
 
