@@ -1022,35 +1022,21 @@
 
         // Jika santri terputus jaringannya
         socket.on("student_disconnected", (data) => {
-            const sid = data?.sid ?? null
-            const hostname = data?.hostname ?? null
+            const sid = data?.device_id ?? null
+            const hostname = data?.name ?? null
 
             connectedPcs.delete(sid)
 
             // 1. Hapus kartu PC dari grid jika elemen ditemukan
             if (sid) {
                 const card = document.getElementById(`pc-${sid}`);
-                if (card) card.remove();
+                if (card) {
+                    card.remove();
+                    showToast(`🔌 Santri (${hostname}) terputus dari jaringan.`, "failed");
+                }
                 delete activeAppsData[sid];
                 if (connectedPcs.length === 0) clearPlaceholders;
             }
-
-            // 2. Tampilkan Toast Notification Disconnect
-            Toastify({
-                text: `🔌 Santri (${hostname}) terputus dari jaringan.`,
-                duration: 3000,
-                gravity: "top",     // 'top' atau 'bottom'
-                position: "right",     // 'left', 'center', atau 'right'
-                stopOnFocus: true,
-                style: {
-                    background: "#0f172a",                 // Dark Slate
-                    color: "#fca5a5",                      // Teks Merah/Rose Terang
-                    border: "1px solid #881337",            // Border Rose 900
-                    borderRadius: "0.75rem",               // Rounded XL
-                    fontSize: "0.8125rem",                 // Text XS/SM
-                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)"
-                }
-            }).showToast();
         });
 
         // Map untuk menyimpan Blob URL lama agar bisa di-revoke (mencegah memory leak)

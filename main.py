@@ -32,7 +32,7 @@ STREAM_CONFIG = fetch_stream_config_from_db()
 print(f"[*] STREAM_CONFIG dimuat dari DB: {STREAM_CONFIG}")
 
 # In-memory State Management
-# Format: { sid: {"hostname": str, "telemetry": dict, "mode": str} }
+# Format: { device_id: {"sid": str, "hostname": str, "telemetry": dict, "mode": str} }
 connected_students = {}
 teacher_sids = set()
 active_focus_viewers = {}
@@ -52,26 +52,38 @@ async def connect(sid, environ):
 
 @sio.event
 async def disconnect(sid):
-    if sid in connected_students:
-        student = connected_students.pop(sid)
-        print(f"[-] Siswa terputus: {student.get('hostname')}")
+    # 1. Cari siswa berdasarkan sid di dalam nested dictionary
+    found_device_id = None
+    for device_id, student_info in connected_students.items():
+        if student_info.get('sid') == sid:
+            found_device_id = device_id
+            break  # Keluar dari loop jika sudah ketemu
+
+    # 2. Jika ditemukan, lakukan pop menggunakan key device_id tersebut
+    if found_device_id:
+        student = connected_students.pop(found_device_id)
+        print(f'murid Mas : {student}')
+        print(f"[-] Siswa terputus: {student.get('name')}")
+
         # Beritahu semua dashboard guru bahwa siswa ini offline
         await sio.emit("student_disconnected", student, room="teachers")
-    elif sid in teacher_sids:
-        to_remove = [] # untuk hapus fullscreen
 
+    elif sid in teacher_sids:
+        to_remove = []  # untuk hapus fullscreen
         for target_sid, viewers in active_focus_viewers.items():
             if sid in viewers:
                 viewers.remove(sid)
                 # Jika tidak ada penonton tersisa di PC tersebut
                 if len(viewers) == 0:
-                    to_remove.append(target_sid) # mengapa tidak langsung hapus key disctionary karena masih di iterasi dan itu dapat menyebabkan error jika dihapus saat iterasi saat ini
+                    to_remove.append(target_sid)
+
                     await sio.emit(
                         "command",
                         {"action": "set_mode", "mode": "grid"},
                         to=target_sid,
                     )
-        # menghapus key dictionary, mengapa ini berhasil karena yang dijadikan perulangan bukanlah dictionary active_focus_viewers melainkan array to_remove
+
+        # Menghapus key dictionary secara aman setelah iterasi selesai
         for target_sid in to_remove:
             del active_focus_viewers[target_sid]
 
