@@ -7,9 +7,13 @@ import os
 import shutil
 from auth import (router as auth_router)
 from client_helper import update_clients_lock_status, upsert_client_and_get_status_and_name, verify_client_password
+from get_version import get_latest_watchers_version, parse_version
 from management import (router as management_router, get_all_users, get_all_rooms, fetch_stream_config_from_db)
 from auth_middleware import get_current_user
 from init_db import init_db
+
+# 0. Dapatkan versi Aplikasi
+CURRENT_VERSION = get_latest_watchers_version()
 
 # 1. Inisialisasi Socket.IO AsyncServer (Engine ASGI)
 sio = socketio.AsyncServer(
@@ -173,18 +177,39 @@ async def on_register_student(sid, data):
             to=sid
         )
 
-@sio.on("student_frame") # type: ignore
+@sio.on("student_frame")  # type: ignore
 async def on_student_frame(sid, data):
     """Menerima screenshot layar & telemetri dari PC siswa, lalu menyalurkannya ke guru."""
+    device_id = data.get("device_id", sid)
+    telemetry = data.get("telemetry") or {}
+    agent_version = telemetry.get("agent_version", "0.0.0")
+
+    # --- LOGIKA PERBANDINGAN VERSI ---
+    if parse_version(agent_version) < parse_version(CURRENT_VERSION):
+        update_payload = {
+            "latest_version": CURRENT_VERSION,
+            "download_url": (
+                f"/downloads/WatchersClient-v{CURRENT_VERSION}-x64.exe"
+            ),
+        }
+
+        # Kirim sinyal update HANYA ke socket client ini (sid)
+        await sio.emit("trigger_update", update_payload, to=sid)
+
     # Data disalurkan HANYA ke client yang berada di room 'teachers'
     payload = {
-        "sid": data.get("device_id", sid), # Gunakan device_id karena unique dan tidak tergantung koneksi socket
-        "hostname": connected_students.get(data.get("device_id"), {}).get("name", "Unknown-PC"),
-        "telemetry": data.get("telemetry"),
+        "sid": device_id,
+        "hostname": connected_students.get(device_id, {}).get(
+            "name", "Unknown-PC"
+        ),
+        "telemetry": telemetry,
         "image": data.get("image"),  # Bytes / WebP Frame
     }
 
-    target_rooms = ['teachers', str(payload.get("hostname")).split('-')[0].lower()]
+    target_rooms = [
+        "teachers",
+        str(payload.get("hostname")).split("-")[0].lower(),
+    ]
     await sio.emit("update_student_card", payload, room=target_rooms)
 
 @sio.on("send_command") # type: ignore
