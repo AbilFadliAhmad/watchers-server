@@ -1,3 +1,52 @@
+document.addEventListener("DOMContentLoaded", () => {
+    if (!document.getElementById("app-modal")) {
+        // 1. Buat elemen div utama untuk modal
+        const modalElement = document.createElement("div");
+
+        // 2. Set ID dan class Tailwind
+        modalElement.id = "app-modal";
+        modalElement.className = "fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden opacity-0 transition-all duration-200";
+
+        // 3. Isi struktur HTML di dalam elemen modal
+        modalElement.innerHTML = `
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-5 shadow-2xl transform scale-95 transition-all duration-200">
+
+                <!-- Header Modal -->
+                <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="layout-grid" class="w-5 h-5 text-indigo-400"></i>
+                        <h3 id="modal-title" class="font-bold text-sm text-gray-100">Daftar Aplikasi Aktif</h3>
+                    </div>
+                    <button onclick="closeAppModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Body Modal (Daftar Aplikasi) -->
+                <div id="modal-app-list" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    <!-- Item aplikasi dirender dinamis di sini -->
+                </div>
+
+                <!-- Footer Modal -->
+                <div class="mt-5 pt-3 border-t border-gray-800 flex justify-end">
+                    <button onclick="closeAppModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold px-4 py-2 rounded-lg transition">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 4. Tambahkan node elemen ke dokumen HTML menggunakan appendChild
+        document.body.appendChild(modalElement);
+
+        // Render ulang ikon Lucide jika digunakan
+        if (typeof lucide !== "undefined") {
+            lucide.createIcons();
+        }
+    }
+});
+
+
 // Buka Modal & Render Daftar Aplikasi
 function showAppDetails(sid, hostname) {
     const apps = activeAppsData[sid] || [];

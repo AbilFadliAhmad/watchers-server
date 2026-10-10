@@ -344,5 +344,17 @@ async def upload_ota_update(request: Request, file: UploadFile = File(...)):
         "url": public_url,
     }
 
+# Fungsi helper untuk menambahkan query parameter versioning agar javascript tidak di-cache oleh browser
+def static_v(path: str) -> str:
+    file_path = os.path.join("static", path)
+    if os.path.exists(file_path):
+        mtime = int(os.path.getmtime(file_path))
+        return f"/static/{path}?v={mtime}"
+    return f"/static/{path}"
+
+
+# Daftarkan fungsi ke Jinja2 globals
+templates.env.globals["static_v"] = static_v
+
 # Integrating Socket.IO ASGI App ke FastAPI
 socket_app = socketio.ASGIApp(sio, app)

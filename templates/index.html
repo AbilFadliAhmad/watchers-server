@@ -11,19 +11,23 @@
     <!-- Toastify CSS & JS CDN -->
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-    <script src="{{ url_for('static', path='/js/skeleton_dashboard.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/send_messages.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/shutdown.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/automation_keyboard.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/detail_open_applications.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/fullscreen.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/logout.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/toaster.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/visit_url.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/update_agent_client.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/management_rooms.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/management_users.js') }}" defer></script>
-    <script src="{{ url_for('static', path='/js/multi_sellects.js') }}" defer></script>
+    <script src="{{ static_v('js/skeleton_dashboard.js') }}" defer></script>
+    <script src="{{ static_v('js/send_message.js') }}" defer></script>
+    <script src="{{ static_v('js/rename_client.js') }}" defer></script>
+    <script src="{{ static_v('js/shutdown.js') }}" defer></script>
+    <script src="{{ static_v('js/stream_config.js') }}" defer></script>
+    <script src="{{ static_v('js/lock.js') }}" defer></script>
+    <script src="{{ static_v('js/unlock.js') }}" defer></script>
+    <script src="{{ static_v('js/automation_keyboard.js') }}" defer></script>
+    <script src="{{ static_v('js/detail_open_applications.js') }}" defer></script>
+    <script src="{{ static_v('js/fullscreen.js') }}" defer></script>
+    <script src="{{ static_v('js/logout.js') }}" defer></script>
+    <script src="{{ static_v('js/toaster.js') }}" defer></script>
+    <script src="{{ static_v('js/visit_url.js') }}" defer></script>
+    <script src="{{ static_v('js/update_agent_client.js') }}" defer></script>
+    <script src="{{ static_v('js/management_rooms.js') }}" defer></script>
+    <script src="{{ static_v('js/management_users.js') }}" defer></script>
+    <script src="{{ static_v('js/multi_sellects.js') }}" defer></script>
 </head>
 <!-- Container Fullscreen Viewer -->
 <div id="fullscreen-viewer" class="fixed inset-0 bg-black z-50 hidden flex-col items-center justify-center">
@@ -184,511 +188,246 @@
         <!-- Kartu PC siswa dirender di sini -->
     </main>
 
-    <!-- Modal Detail Aplikasi Kustom -->
-    <div id="app-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-all duration-200">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-5 shadow-2xl transform scale-95 transition-all duration-200">
-
-            <!-- Header Modal -->
-            <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-4">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="layout-grid" class="w-5 h-5 text-indigo-400"></i>
-                    <h3 id="modal-title" class="font-bold text-sm text-gray-100">Daftar Aplikasi Aktif</h3>
-                </div>
-                <button onclick="closeAppModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <!-- Body Modal (Daftar Aplikasi) -->
-            <div id="modal-app-list" class="space-y-2 max-h-64 overflow-y-auto pr-1">
-                <!-- Item aplikasi dirender dinamis di sini -->
-            </div>
-
-            <!-- Footer Modal -->
-            <div class="mt-5 pt-3 border-t border-gray-800 flex justify-end">
-                <button onclick="closeAppModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold px-4 py-2 rounded-lg transition">
-                    Tutup
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal 1: Kirim Pesan Pop-up -->
-    <div id="message-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-all duration-200">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-5 shadow-2xl transform scale-95 transition-all duration-200">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-4">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="message-square" class="w-5 h-5 text-emerald-400"></i>
-                    <h3 id="msg-modal-title" class="font-bold text-sm text-gray-100">Kirim Pesan ke Siswa</h3>
-                </div>
-                <button onclick="closeMessageModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-            <div class="space-y-3">
-                <label class="text-xs text-gray-400">Pesan Pengingat / Instruksi:</label>
-                <textarea id="msg-input" rows="3" class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-indigo-500 transition resize-none" placeholder="Ketik pesan di sini..."></textarea>
-            </div>
-            <div class="mt-5 pt-3 border-t border-gray-800 flex justify-end gap-2">
-                <button onclick="closeMessageModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold px-4 py-2 rounded-lg transition">Batal</button>
-                <button onclick="submitSendMessage()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-1.5">
-                    <i data-lucide="send" class="w-3.5 h-3.5"></i> Kirim Pesan
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal 2: MODAL Kontrol Daya (Shutdown / Restart) Konfirmasi -->
-    <div id="confirm-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-all duration-200">
-        <div class="bg-gray-900 border border-rose-900/50 rounded-2xl w-full max-w-sm p-5 shadow-2xl transform scale-95 transition-all duration-200 text-center">
-            
-            <!-- Icon Power -->
-            <div class="w-12 h-12 bg-rose-950 border border-rose-800/50 rounded-full flex items-center justify-center mx-auto mb-3 text-rose-500">
-                <i data-lucide="power" class="w-6 h-6"></i>
-            </div>
-            
-            <h3 id="confirm-title" class="font-bold text-base text-gray-100 mb-1">Kontrol Daya PC</h3>
-            <p id="confirm-desc" class="text-xs text-gray-400 mb-4">Pilih tindakan daya untuk komputer ini.</p>
-            
-            <!-- Dropdown Pilihan Aksi Daya -->
-            <div class="mb-5 text-left">
-                <label class="text-[11px] font-semibold text-gray-400 block mb-1.5">Pilih Aksi Daya:</label>
-                <select id="power-action-select" class="w-full bg-gray-950 border border-gray-800 text-xs text-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-rose-500 transition cursor-pointer">
-                    <option value="shutdown">🔴 Matikan PC (Shutdown)</option>
-                    <option value="restart">🔄 Mulai Ulang PC (Restart)</option>
-                </select>
-            </div>
-
-            <!-- Tombol Aksi -->
-            <div class="flex justify-center gap-2">
-                <button onclick="closeConfirmModal()" class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold py-2.5 rounded-lg transition">Batal</button>
-                <button id="btn-execute-confirm" class="w-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-1.5">
-                    <i data-lucide="power" class="w-3.5 h-3.5"></i>
-                    <span id="btn-execute-text">Ya, Matikan</span>
-                </button>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Modal Upload & Broadcast OTA Update -->
-    <div id="ota-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-all duration-200">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-5 shadow-2xl transform scale-95 transition-all duration-200">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-4">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="refresh-cw" class="w-5 h-5 text-indigo-400"></i>
-                    <h3 class="font-bold text-sm text-gray-100">Update Client Application (.exe)</h3>
-                </div>
-                <button onclick="closeOtaModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
-            </div>
-
-            <div class="space-y-4">
-                <p class="text-xs text-gray-400">Pilih file executable (<code class="text-indigo-300">.exe</code>) build terbaru. File akan diunggah ke folder static server dan tautan unduhannya disiarkan ke seluruh PC client.</p>
-
-                <input type="file" id="ota-file-input" accept=".exe" class="block w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600/20 file:text-indigo-300 hover:file:bg-indigo-600 hover:file:text-white cursor-pointer bg-gray-950 border border-gray-800 rounded-xl p-2 transition">
-
-                <!-- Indikator Loading Upload -->
-                <div id="ota-status" class="text-xs text-indigo-400 hidden flex items-center gap-2">
-                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
-                    <span id="ota-status-text">Mengunggah file ke server...</span>
-                </div>
-            </div>
-
-            <div class="mt-5 pt-3 border-t border-gray-800 flex justify-end gap-2">
-                <button onclick="closeOtaModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold px-4 py-2 rounded-lg transition">Batal</button>
-                <button onclick="submitOtaUpdate()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-1.5">
-                    <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i> Upload & Broadcast
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Kunjungi URL -->
-    <div id="url-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
-
-            <!-- Header Modal -->
-            <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-800">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-sky-600/20 border border-sky-500/30 text-sky-400 flex items-center justify-center">
-                        <i data-lucide="globe" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-100">Buka URL Web</h3>
-                        <p id="url-target-label" class="text-[11px] text-sky-400 font-mono">Target: Semua PC</p>
-                    </div>
-                </div>
-                <button onclick="closeUrlModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <!-- Form Input -->
-            <div class="space-y-4">
-                <div>
-                    <label for="input-target-url" class="block text-xs font-semibold text-gray-300 mb-1.5">Alamat Website (URL)</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
-                            <i data-lucide="link" class="w-4 h-4"></i>
-                        </span>
-                        <input type="text" id="input-target-url" placeholder="https://google.com atau classroom.google.com"
-                               class="w-full pl-9 pr-3 py-2.5 bg-gray-950 border border-gray-800 focus:border-sky-500 rounded-xl text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
-                    </div>
-                    <p class="text-[10px] text-gray-500 mt-1">Sistem akan otomatis membuka browser default pada PC client.</p>
-                </div>
-
-                <!-- Tombol Aksi -->
-                <div class="flex items-center justify-end gap-2 pt-2">
-                    <button onclick="closeUrlModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition">
-                        Batal
-                    </button>
-                    <button onclick="submitUrlCommand()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-sky-600/20 transition">
-                        <i data-lucide="external-link" class="w-4 h-4"></i> Buka Browser
-                    </button>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Modal Ketik Otomatis (Macro Keyboard) -->
-    <div id="macro-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
-
-            <!-- Header Modal -->
-            <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-800">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-purple-600/20 border border-purple-500/30 text-purple-400 flex items-center justify-center">
-                        <i data-lucide="keyboard" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-100">Ketik Otomatis (Macro)</h3>
-                        <p id="macro-target-label" class="text-[11px] text-purple-400 font-mono">Target: Semua PC</p>
-                    </div>
-                </div>
-                <button onclick="closeMacroModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <!-- Box Indikator Status & Daftar Ketikan -->
-            <div class="space-y-3">
-                <div class="flex items-center justify-between bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2">
-                    <div class="flex items-center gap-2">
-                        <span id="macro-recording-dot" class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping hidden"></span>
-                        <p id="macro-status" class="text-xs font-semibold text-gray-300">Siap Merekam</p>
-                    </div>
-                    <span id="macro-event-badge" class="text-[10px] font-mono font-bold text-purple-400 bg-purple-950/60 border border-purple-800/50 px-2 py-0.5 rounded-md">
-                        0 Event
-                    </span>
-                </div>
-
-                <!-- Area Daftar Ketikan (Scrollable List) -->
-                <div id="macro-list-container" class="h-48 overflow-y-auto bg-gray-950 border border-gray-800 rounded-xl p-2 space-y-1.5 custom-scrollbar">
-                    <div class="h-full flex flex-col items-center justify-center text-center text-gray-600 py-6">
-                        <i data-lucide="command" class="w-7 h-7 mb-1.5 opacity-40"></i>
-                        <p class="text-xs">Belum ada tombol terekam</p>
-                        <p class="text-[10px] text-gray-600">Tekan 'Mulai Merekam' untuk memulai</p>
-                    </div>
-                </div>
-
-                <!-- Tombol Sisip Khusus (Virtual System Keys) -->
-                <div class="space-y-1.5">
-                    <p class="text-[10px] font-semibold text-gray-400">Sisip Tombol Sistem & Shortcut Kombinasi:</p>
-                    <div class="flex flex-wrap gap-1.5">
-                        <!-- Sisip Tombol WIN Tunggal -->
-                        <button type="button" onclick="insertWinKey()" class="px-2.5 py-1 bg-purple-950/80 hover:bg-purple-900 border border-purple-800/60 text-purple-300 text-[11px] font-mono font-bold rounded-lg transition">
-                            + WIN
-                        </button>
-
-                        <!-- Preset Kombinasi Penting -->
-                        <button type="button" onclick="insertShortcutPreset('win_r')" class="px-2.5 py-1 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-800/60 text-emerald-300 text-[11px] font-mono font-bold rounded-lg transition">
-                            ⚡ WIN + R (Run)
-                        </button>
-                        <button type="button" onclick="insertShortcutPreset('ctrl_shift_esc')" class="px-2.5 py-1 bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-800/60 text-indigo-300 text-[11px] font-mono font-bold rounded-lg transition">
-                            ⚡ Task Mgr (CTRL+SHIFT+ESC)
-                        </button>
-                        <button type="button" onclick="insertShortcutPreset('alt_tab')" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[11px] font-mono font-bold rounded-lg transition">
-                            ⚡ ALT + TAB
-                        </button>
-                        <button type="button" onclick="insertShortcutPreset('win_d')" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[11px] font-mono font-bold rounded-lg transition">
-                            ⚡ WIN + D (Desktop)
-                        </button>
-                        <button type="button" onclick="insertShortcutPreset('win_l')" class="px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-800/60 text-rose-300 text-[11px] font-mono font-bold rounded-lg transition">
-                            ⚡ WIN + L (Lock)
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Instruksi Ringkas -->
-                <div class="bg-purple-950/20 border border-purple-900/30 rounded-xl p-2.5">
-                    <p class="text-[11px] text-purple-300 leading-relaxed">
-                        💡 Huruf yang diketik memiliki jeda waktu yang tercatat presisi.
-                    </p>
-                </div>
-
-                <!-- Tombol Aksi -->
-                <div class="flex items-center justify-end gap-2 pt-1">
-                    <button onclick="closeMacroModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition">
-                        Batal
-                    </button>
-
-                    <!-- Tombol Mulai Rekam -->
-                    <button id="btn-start-record" onclick="startRecordingMacro()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-purple-600/20 transition">
-                        <i data-lucide="circle-dot" class="w-4 h-4"></i> Mulai Merekam
-                    </button>
-
-                    <!-- Tombol Stop & Kirim -->
-                    <button id="btn-stop-send" onclick="stopAndSendMacro()" class="hidden px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-xl items-center gap-1.5 shadow-lg shadow-rose-600/20 transition">
-                        <i data-lucide="square" class="w-4 h-4"></i> Hentikan & Eksekusi
-                    </button>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- MODAL ATUR ROOM (GROUP) -->
-    <!-- ========================================== -->
-    <div id="room-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
-
-            <!-- Header Modal -->
-            <div class="flex items-center justify-between pb-3 border-b border-gray-800">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
-                        <i data-lucide="folder-tree" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-100">Manajemen Room</h3>
-                        <p class="text-[11px] text-gray-400">Tambah dan lihat grup lab komputer</p>
-                    </div>
-                </div>
-                <button onclick="closeGroupModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <!-- Form Tambah Room -->
-            <form onsubmit="submitCreateRoom(event)" class="mt-4 space-y-3">
-                <div>
-                    <label for="room-name-input" class="block text-xs font-semibold text-gray-300 mb-1">Nama Room Baru</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="room-name-input" required placeholder="Contoh: lab_komputer_1"
-                               class="flex-1 bg-gray-950 border border-gray-800 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
-                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Tambah
-                        </button>
-                    </div>
-                </div>
-            </form>
-
-            <!-- List Room Terdaftar -->
-            <div class="mt-4 pt-3 border-t border-gray-800 flex-1 overflow-hidden flex flex-col">
-                <p class="text-xs font-semibold text-gray-400 mb-2">Daftar Room Terdaftar ({{ rooms|length }})</p>
-                <div class="overflow-y-auto space-y-2 pr-1 custom-scrollbar flex-1">
-                    {% for room in rooms %}
-                    <div class="flex items-center justify-between bg-gray-950 border border-gray-800 p-2.5 rounded-xl">
-                        <div class="flex items-center gap-2.5">
-                            <i data-lucide="door-open" class="w-4 h-4 text-emerald-400"></i>
-                            <span class="text-xs font-medium text-gray-200">{{ room.name }}</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <span class="text-[10px] font-mono text-gray-500 mr-1">ID: #{{ room.id }}</span>
-                            {% if room.name != 'teachers' %}
-                            <button onclick="openEditRoomModal('{{ room.id }}', '{{ room.name }}')" class="p-1 text-gray-500 hover:text-emerald-400 hover:bg-emerald-950/40 rounded-lg transition" title="Edit Room">
-                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                            </button>
-                            <button onclick="deleteRoom('{{ room.id }}', '{{ room.name }}')" class="p-1 text-gray-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition" title="Hapus Room">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            </button>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% else %}
-                    <p class="text-xs text-gray-500 text-center py-4">Belum ada room terdaftar</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- ========================================== -->
     <!-- MODAL ATUR STAFF (USERS) -->
-    <!-- ========================================== -->
-    <div id="staff-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-800 w-full max-w-xl rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+    <div>
+        <div id="staff-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+            <div class="bg-gray-900 border border-gray-800 w-full max-w-xl rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
 
-            <!-- Header Modal -->
-            <div class="flex items-center justify-between pb-3 border-b border-gray-800">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
-                        <i data-lucide="users" class="w-5 h-5"></i>
+                <!-- Header Modal -->
+                <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-100">Manajemen Staff & Pengguna</h3>
+                            <p class="text-[11px] text-gray-400">Daftarkan akun Dosen, Direktur, atau Developer</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-100">Manajemen Staff & Pengguna</h3>
-                        <p class="text-[11px] text-gray-400">Daftarkan akun Dosen, Direktur, atau Developer</p>
-                    </div>
-                </div>
-                <button onclick="closeStaffModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <!-- Form Tambah Staff -->
-            <form onsubmit="submitCreateUser(event)" class="mt-4 space-y-3">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label for="staff-username" class="block text-xs font-semibold text-gray-300 mb-1">Username</label>
-                        <input type="text" id="staff-username" required placeholder="Contoh: dosen_lab"
-                               class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
-                    </div>
-                    <div>
-                        <label for="staff-password" class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
-                        <input type="password" id="staff-password" required placeholder="••••••••"
-                               class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
-                    </div>
-                    <div>
-                        <label for="staff-role" class="block text-xs font-semibold text-gray-300 mb-1">Role Jabatan</label>
-                        <select id="staff-role" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
-                            <option value="dosen">Dosen</option>
-                            <option value="direktur">Direktur</option>
-                            <option value="developer">Developer</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="staff-room" class="block text-xs font-semibold text-gray-300 mb-1">Room Assignment</label>
-                        <select id="staff-room" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
-                            {% for room in rooms %}
-                            <option value="{{ room.name }}">{{ room.name }}</option>
-                            {% else %}
-                            <option value="teachers">teachers (default)</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="flex justify-end pt-1">
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition">
-                        <i data-lucide="user-plus" class="w-4 h-4"></i> Buat Akun Staff
+                    <button onclick="closeStaffModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
                 </div>
-            </form>
 
-            <!-- List User Terdaftar -->
-            <div class="mt-4 pt-3 border-t border-gray-800 flex-1 overflow-hidden flex flex-col">
-                <p class="text-xs font-semibold text-gray-400 mb-2">Daftar Akun Terdaftar ({{ users|length }})</p>
-                <div class="overflow-y-auto space-y-2 pr-1 custom-scrollbar flex-1">
-                    {% for u in users %}
-                    <div class="flex items-center justify-between bg-gray-950 border border-gray-800 p-2.5 rounded-xl">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-indigo-950 border border-indigo-800/60 text-indigo-400 flex items-center justify-center font-bold text-xs uppercase">
-                                {{ u.username[0] }}
+                <!-- Form Tambah Staff -->
+                <form onsubmit="submitCreateUser(event)" class="mt-4 space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label for="staff-username" class="block text-xs font-semibold text-gray-300 mb-1">Username</label>
+                            <input type="text" id="staff-username" required placeholder="Contoh: dosen_lab"
+                                    class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label for="staff-password" class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
+                            <input type="password" id="staff-password" required placeholder="••••••••"
+                                    class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label for="staff-role" class="block text-xs font-semibold text-gray-300 mb-1">Role Jabatan</label>
+                            <select id="staff-role" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                                <option value="dosen">Dosen</option>
+                                <option value="direktur">Direktur</option>
+                                <option value="developer">Developer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="staff-room" class="block text-xs font-semibold text-gray-300 mb-1">Room Assignment</label>
+                            <select id="staff-room" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                                {% for room in rooms %}
+                                <option value="{{ room.name }}">{{ room.name }}</option>
+                                {% else %}
+                                <option value="teachers">teachers (default)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-1">
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i> Buat Akun Staff
+                        </button>
+                    </div>
+                </form>
+
+                <!-- List User Terdaftar -->
+                <div class="mt-4 pt-3 border-t border-gray-800 flex-1 overflow-hidden flex flex-col">
+                    <p class="text-xs font-semibold text-gray-400 mb-2">Daftar Akun Terdaftar ({{ users|length }})</p>
+                    <div class="overflow-y-auto space-y-2 pr-1 custom-scrollbar flex-1">
+                        {% for u in users %}
+                        <div class="flex items-center justify-between bg-gray-950 border border-gray-800 p-2.5 rounded-xl">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-indigo-950 border border-indigo-800/60 text-indigo-400 flex items-center justify-center font-bold text-xs uppercase">
+                                    {{ u.username[0] }}
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-200 capitalize leading-tight">{{ u.username }}</p>
+                                    <p class="text-[10px] text-gray-500">Room: <span class="text-emerald-400 font-mono">{{ u.room }}</span></p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="text-xs font-semibold text-gray-200 capitalize leading-tight">{{ u.username }}</p>
-                                <p class="text-[10px] text-gray-500">Room: <span class="text-emerald-400 font-mono">{{ u.room }}</span></p>
+                            <div class="flex items-center gap-1">
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 border border-indigo-800/60 uppercase mr-1">
+                                    {{ u.role }}
+                                </span>
+                                <button onclick="openEditUserModal('{{ u.id }}', '{{ u.username }}', '{{ u.role }}', '{{ u.room }}')" class="p-1 text-gray-500 hover:text-indigo-400 hover:bg-indigo-950/40 rounded-lg transition" title="Edit User">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                {% if u.id != user.id %}
+                                <button onclick="deleteUser('{{ u.id }}', '{{ u.username }}')" class="p-1 text-gray-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition" title="Hapus User">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                                {% endif %}
                             </div>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 border border-indigo-800/60 uppercase mr-1">
-                                {{ u.role }}
-                            </span>
-                            <button onclick="openEditUserModal('{{ u.id }}', '{{ u.username }}', '{{ u.role }}', '{{ u.room }}')" class="p-1 text-gray-500 hover:text-indigo-400 hover:bg-indigo-950/40 rounded-lg transition" title="Edit User">
-                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                            </button>
-                            {% if u.id != user.id %}
-                            <button onclick="deleteUser('{{ u.id }}', '{{ u.username }}')" class="p-1 text-gray-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition" title="Hapus User">
-                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            </button>
-                            {% endif %}
+                        {% else %}
+                        <p class="text-xs text-gray-500 text-center py-4">Belum ada akun staff terdaftar</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Modal Edit User -->
+        <div id="edit-staff-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+            <div class="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
+                    <h3 class="text-sm font-bold text-gray-100">Edit Akun Staff</h3>
+                    <button onclick="closeEditUserModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <form onsubmit="submitEditUser(event)" class="space-y-3">
+                    <input type="hidden" id="edit-staff-id">
+                    <div>
+                        <label for="edit-staff-username" class="block text-xs font-semibold text-gray-300 mb-1">Username</label>
+                        <input type="text" id="edit-staff-username" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label for="edit-staff-password" class="block text-xs font-semibold text-gray-300 mb-1">Password Baru <span class="text-[10px] text-gray-500 font-normal">(Kosongkan jika tidak diubah)</span></label>
+                        <input type="password" id="edit-staff-password" placeholder="••••••••" class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="edit-staff-role" class="block text-xs font-semibold text-gray-300 mb-1">Role Jabatan</label>
+                            <select id="edit-staff-role" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                                <option value="dosen">Dosen</option>
+                                <option value="direktur">Direktur</option>
+                                <option value="developer">Developer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="edit-staff-room" class="block text-xs font-semibold text-gray-300 mb-1">Room Assignment</label>
+                            <select id="edit-staff-room" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                                {% for room in rooms %}
+                                <option value="{{ room.name }}">{{ room.name }}</option>
+                                {% else %}
+                                <option value="teachers">teachers (default)</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
-                    {% else %}
-                    <p class="text-xs text-gray-500 text-center py-4">Belum ada akun staff terdaftar</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Modal Edit Room -->
-    <div id="edit-room-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
-                <h3 class="text-sm font-bold text-gray-100">Edit Nama Room</h3>
-                <button onclick="closeEditRoomModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <form onsubmit="submitEditRoom(event)" class="space-y-4">
-                <input type="hidden" id="edit-room-id">
-                <div>
-                    <label for="edit-room-name" class="block text-xs font-semibold text-gray-300 mb-1">Nama Room</label>
-                    <input type="text" id="edit-room-name" required class="w-full bg-gray-950 border border-gray-800 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-gray-100 focus:outline-none transition">
-                </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeEditRoomModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl">Simpan Perubahan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Edit User -->
-    <div id="edit-staff-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
-                <h3 class="text-sm font-bold text-gray-100">Edit Akun Staff</h3>
-                <button onclick="closeEditUserModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <form onsubmit="submitEditUser(event)" class="space-y-3">
-                <input type="hidden" id="edit-staff-id">
-                <div>
-                    <label for="edit-staff-username" class="block text-xs font-semibold text-gray-300 mb-1">Username</label>
-                    <input type="text" id="edit-staff-username" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
-                </div>
-                <div>
-                    <label for="edit-staff-password" class="block text-xs font-semibold text-gray-300 mb-1">Password Baru <span class="text-[10px] text-gray-500 font-normal">(Kosongkan jika tidak diubah)</span></label>
-                    <input type="password" id="edit-staff-password" placeholder="••••••••" class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label for="edit-staff-role" class="block text-xs font-semibold text-gray-300 mb-1">Role Jabatan</label>
-                        <select id="edit-staff-role" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
-                            <option value="dosen">Dosen</option>
-                            <option value="direktur">Direktur</option>
-                            <option value="developer">Developer</option>
-                        </select>
+                    <div class="flex justify-end gap-2 pt-3">
+                        <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl">Simpan Perubahan</button>
                     </div>
-                    <div>
-                        <label for="edit-staff-room" class="block text-xs font-semibold text-gray-300 mb-1">Room Assignment</label>
-                        <select id="edit-staff-room" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
-                            {% for room in rooms %}
-                            <option value="{{ room.name }}">{{ room.name }}</option>
-                            {% else %}
-                            <option value="teachers">teachers (default)</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-2 pt-3">
-                    <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl">Simpan Perubahan</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 
-    <!-- Modal Konfigurasi Stream (Tinggi Maksimal 85vh) -->
-    <div id="stream-config-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <!-- MODAL ATUR ROOM (GROUP) -->
+    <div>
+        <!-- MODAL ATUR ROOM (GROUP) -->
+        <div id="room-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+            <div class="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+
+                <!-- Header Modal -->
+                <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                            <i data-lucide="folder-tree" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-100">Manajemen Room</h3>
+                            <p class="text-[11px] text-gray-400">Tambah dan lihat grup lab komputer</p>
+                        </div>
+                    </div>
+                    <button onclick="closeGroupModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Form Tambah Room -->
+                <form onsubmit="submitCreateRoom(event)" class="mt-4 space-y-3">
+                    <div>
+                        <label for="room-name-input" class="block text-xs font-semibold text-gray-300 mb-1">Nama Room Baru</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="room-name-input" required placeholder="Contoh: lab_komputer_1"
+                                class="flex-1 bg-gray-950 border border-gray-800 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
+                            <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- List Room Terdaftar -->
+                <div class="mt-4 pt-3 border-t border-gray-800 flex-1 overflow-hidden flex flex-col">
+                    <p class="text-xs font-semibold text-gray-400 mb-2">Daftar Room Terdaftar ({{ rooms|length }})</p>
+                    <div class="overflow-y-auto space-y-2 pr-1 custom-scrollbar flex-1">
+                        {% for room in rooms %}
+                        <div class="flex items-center justify-between bg-gray-950 border border-gray-800 p-2.5 rounded-xl">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="door-open" class="w-4 h-4 text-emerald-400"></i>
+                                <span class="text-xs font-medium text-gray-200">{{ room.name }}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-[10px] font-mono text-gray-500 mr-1">ID: #{{ room.id }}</span>
+                                {% if room.name != 'teachers' %}
+                                <button onclick="openEditRoomModal('{{ room.id }}', '{{ room.name }}')" class="p-1 text-gray-500 hover:text-emerald-400 hover:bg-emerald-950/40 rounded-lg transition" title="Edit Room">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteRoom('{{ room.id }}', '{{ room.name }}')" class="p-1 text-gray-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition" title="Hapus Room">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-gray-500 text-center py-4">Belum ada room terdaftar</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+        <!-- Modal Edit Room -->
+        <div id="edit-room-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+            <div class="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
+                    <h3 class="text-sm font-bold text-gray-100">Edit Nama Room</h3>
+                    <button onclick="closeEditRoomModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <form onsubmit="submitEditRoom(event)" class="space-y-4">
+                    <input type="hidden" id="edit-room-id">
+                    <div>
+                        <label for="edit-room-name" class="block text-xs font-semibold text-gray-300 mb-1">Nama Room</label>
+                        <input type="text" id="edit-room-name" required class="w-full bg-gray-950 border border-gray-800 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-gray-100 focus:outline-none transition">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" onclick="closeEditRoomModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIGURASI STREAM -->
+    <div id="stream-config-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
         <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
             
             <!-- Header Modal (Fixed Top) -->
@@ -869,127 +608,6 @@
 
     </div>
 
-    <!-- Modal Input Kunci Layar -->
-    <div id="lock-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            
-            <!-- Header -->
-            <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400">
-                        <i data-lucide="lock" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-white">Kunci Layar Perangkat</h3>
-                        <p class="text-[11px] text-gray-400">Atur pesan tampilan dan kata sandi pembuka</p>
-                    </div>
-                </div>
-                <button onclick="closeLockModal()" class="text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-gray-800">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <!-- Body -->
-            <div class="p-6 space-y-4">
-                <input type="hidden" id="lock-target-sid">
-
-                <div>
-                    <label class="text-xs font-semibold text-gray-300 block mb-1.5">Pesan Tampilan Kunci:</label>
-                    <input type="text" id="lock-message-input" value="DIKUNCI OLEH GURU" placeholder="Masukkan pesan kunci..." class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-yellow-500">
-                </div>
-
-                <div>
-                    <label class="text-xs font-semibold text-gray-300 block mb-1.5">Kata Sandi Pembuka (Opsional):</label>
-                    <input type="password" id="lock-password-input" placeholder="Kosongkan jika tanpa sandi" class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-yellow-500">
-                    <p class="text-[10px] text-gray-500 mt-1">Siswa dapat membuka kunci fisik PC sendiri jika memasukkan sandi ini.</p>
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="px-6 py-4 border-t border-gray-800 bg-gray-900/50 flex justify-end gap-2.5">
-                <button onclick="closeLockModal()" class="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition">
-                    Batal
-                </button>
-                <button onclick="submitLockCommand()" class="px-4 py-2 text-xs font-bold bg-yellow-600 hover:bg-yellow-500 text-white rounded-xl shadow-lg transition flex items-center gap-2">
-                    <i data-lucide="lock" class="w-3.5 h-3.5"></i>
-                    Kunci Layar
-                </button>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Modal Ubah Nama PC -->
-    <div id="rename-pc-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            
-            <!-- Header -->
-            <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
-                        <i data-lucide="edit-3" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-bold text-white">Ubah Nama PC</h3>
-                        <p class="text-[11px] text-gray-400">Atur nama tampilan perangkat sesuai format lab</p>
-                    </div>
-                </div>
-                <button onclick="closeRenameModal()" class="text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-gray-800">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <!-- Body -->
-            <div class="p-6 space-y-4">
-                <input type="hidden" id="rename-device-id">
-
-                <!-- Input Nama -->
-                <div>
-                    <label class="text-xs font-semibold text-gray-300 block mb-1.5">Nama Perangkat Baru:</label>
-                    <input type="text" id="rename-hostname-input" placeholder="Contoh: LAB1-PC05" class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-mono">
-                </div>
-
-                <!-- Kotak Petunjuk / Panduan Format untuk Orang Awam -->
-                <div class="bg-gray-950/80 border border-amber-500/20 rounded-xl p-3.5 space-y-2">
-                    <div class="flex items-center gap-2 text-amber-400 font-semibold text-xs">
-                        <i data-lucide="info" class="w-4 h-4 shrink-0"></i>
-                        <span>Aturan Format: <code class="bg-amber-950/80 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30 font-mono">{Group}-{Siswa}</code></span>
-                    </div>
-                    
-                    <p class="text-[11px] text-gray-300 leading-relaxed pl-6">
-                        Gunakan <strong>tanda strip/minus (-)</strong> sebagai pemisah antara nama ruangan/kelompok dan nama komputer/siswa.
-                    </p>
-
-                    <div class="pl-6 pt-1 border-t border-gray-800/60 text-[11px] text-gray-400 space-y-1">
-                        <p class="text-gray-300 font-medium">💡 Contoh Pengisian:</p>
-                        <ul class="space-y-1 font-mono text-[10px] text-gray-300">
-                            <li class="flex items-center gap-2">
-                                <span class="text-amber-400">LAB1-PC05</span>
-                                <span class="text-gray-500 font-sans text-[10px]">(Lab 1, Komputer Nomor 05)</span>
-                            </li>
-                            <li class="flex items-center gap-2">
-                                <span class="text-amber-400">R2-BUDI</span>
-                                <span class="text-gray-500 font-sans text-[10px]">(Ruang 2, Siswa bernama Budi)</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="px-6 py-4 border-t border-gray-800 bg-gray-900/50 flex justify-end gap-2.5">
-                <button onclick="closeRenameModal()" class="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition">
-                    Batal
-                </button>
-                <button onclick="submitRenamePC()" class="px-4 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-lg transition flex items-center gap-2">
-                    <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                    Simpan Nama
-                </button>
-            </div>
-
-        </div>
-    </div>
-
     <script>
         const socket = io();
         const activeAppsData = {}; // Menyimpan detail daftar aplikasi per SID
@@ -1020,6 +638,9 @@
             }).showToast();
         });
 
+        // Map untuk menyimpan Blob URL lama agar bisa di-revoke (mencegah memory leak)
+        const objectUrlCache = {};
+
         // Jika santri terputus jaringannya
         socket.on("student_disconnected", (data) => {
             const sid = data?.device_id ?? null
@@ -1037,10 +658,13 @@
                 delete activeAppsData[sid];
                 if (connectedPcs.length === 0) clearPlaceholders;
             }
-        });
 
-        // Map untuk menyimpan Blob URL lama agar bisa di-revoke (mencegah memory leak)
-        const objectUrlCache = {};
+            // 2. Revoke Object URL lama jika ada
+            if (objectUrlCache[sid]) {
+                URL.revokeObjectURL(objectUrlCache[sid]);
+                delete objectUrlCache[sid];
+            }
+        });
 
         socket.on("update_student_card", (data) => {
             connectedPcs.add(data.sid);
@@ -1067,6 +691,7 @@
                     if (objectUrlCache[data.sid]) {
                         URL.revokeObjectURL(objectUrlCache[data.sid]);
                     }
+
                     imageUrl = URL.createObjectURL(blob);
                     objectUrlCache[data.sid] = imageUrl;
                 } else {
@@ -1187,7 +812,7 @@
                         </button>
 
                         <div class="relative">
-                            <button onclick="toggleDropdown(event, '${data.sid}')" class="w-full text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-3 rounded-lg flex items-center justify-between transition shadow-md">
+                            <button onclick="toggleDropdownMoreAction(event, '${data.sid}')" class="w-full text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-3 rounded-lg flex items-center justify-between transition shadow-md">
                                 <span class="flex items-center gap-2">
                                     <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
                                     More Action
@@ -1219,7 +844,7 @@
                                     <i data-lucide="unlock" class="w-3.5 h-3.5 text-emerald-400"></i> Buka Kunci
                                 </button>
                                 <div class="border-t border-gray-800 my-1"></div>
-                                <button onclick="confirmShutdown('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-rose-300 hover:bg-rose-600 hover:text-white flex items-center gap-2.5 transition">
+                                <button onclick="confirmShutdown('${data.sid}', '${data.hostname}')" class="w-full text-xs text-left px-3.5 py-2 text-rose-300 hover:bg-rose-600 hover:text-white flex items-center gap-2.5 transition">
                                     <i data-lucide="power" class="w-3.5 h-3.5 text-rose-400"></i> Matikan PC
                                 </button>
                             </div>
@@ -1278,18 +903,6 @@
                 }
             }
         });
-        
-        // Toggle Dropdown Profile Menu
-        function toggleDropdown(event, sid) {
-            event.stopPropagation();
-            // Tutup semua dropdown lain yang sedang terbuka
-            document.querySelectorAll('.dropdown-menu').forEach(el => {
-                if (el.id !== `dropdown-${sid}`) el.classList.add('hidden');
-            });
-
-            const dropdown = document.getElementById(`dropdown-${sid}`);
-            if (dropdown) dropdown.classList.toggle('hidden');
-        }
 
         // Tutup dropdown jika klik di luar kartu
         window.addEventListener('click', () => {
@@ -1298,6 +911,17 @@
 
         function sendDirectCommand(sid, action, extraData = {}) {
             socket.emit("send_command", { target_sid: sid, command: {action: action, ...extraData} });
+        }
+
+        function toggleDropdownMoreAction(event, sid) {
+            event.stopPropagation();
+            // Tutup semua dropdown lain yang sedang terbuka
+            document.querySelectorAll('.dropdown-menu').forEach(el => {
+                if (el.id !== `dropdown-${sid}`) el.classList.add('hidden');
+            });
+
+            const dropdown = document.getElementById(`dropdown-${sid}`);
+            if (dropdown) dropdown.classList.toggle('hidden');
         }
 
         // Toggle Dropdown Profile
@@ -1314,291 +938,6 @@
                 dropdown.classList.add('hidden');
             }
         });
-
-        // Buka & Tutup Modal Stream Config
-        function openStreamConfigModal() {
-            const modal = document.getElementById('stream-config-modal');
-            if (modal) modal.classList.remove('hidden');
-        }
-
-        function closeStreamConfigModal() {
-            const modal = document.getElementById('stream-config-modal');
-            if (modal) modal.classList.add('hidden');
-        }
-
-        // Toggle Tampilan Input Custom Scale
-        function toggleCustomScale(mode) {
-            const select = document.getElementById(`${mode}-scale-select`);
-            const container = document.getElementById(`${mode}-scale-custom-container`);
-            
-            if (select.value === 'custom') {
-                container.classList.remove('hidden');
-            } else {
-                container.classList.add('hidden');
-            }
-        }
-
-        // --- SINKRONISASI MODE GRID (1 - 60 Detik, Bulat) ---
-        function syncGridSlider(val) {
-            let num = Math.round(parseInt(val) || 5);
-            num = Math.max(1, Math.min(60, num));
-            document.getElementById('grid-interval-slider').value = num;
-            document.getElementById('grid-interval-num').value = num;
-        }
-
-        function syncGridInput(val) {
-            let num = Math.round(parseInt(val) || 1);
-            num = Math.max(1, Math.min(60, num));
-            document.getElementById('grid-interval-slider').value = num;
-            document.getElementById('grid-interval-num').value = num;
-        }
-
-        // --- SINKRONISASI MODE FULLSCREEN (1 - 60 FPS, Bulat) ---
-        function syncFullscreenSlider(val) {
-            let num = Math.round(parseInt(val) || 15);
-            num = Math.max(1, Math.min(60, num));
-            document.getElementById('fullscreen-fps-slider').value = num;
-            document.getElementById('fullscreen-fps-num').value = num;
-        }
-
-        function syncFullscreenInput(val) {
-            let num = Math.round(parseInt(val) || 1);
-            num = Math.max(1, Math.min(10, num));
-            document.getElementById('fullscreen-fps-slider').value = num;
-            document.getElementById('fullscreen-fps-num').value = num;
-        }
-
-        // --- KIRIM KONFIGURASI KE BACKEND FASTAPI ---
-        async function submitStreamConfig() {
-            const gridIntervalSec = parseInt(document.getElementById('grid-interval-num').value) || 5;
-            const fullscreenFps = parseInt(document.getElementById('fullscreen-fps-num').value) || 15;
-
-            // Hitung interval detik untuk agent dari FPS
-            const fullscreenIntervalSec = parseFloat((1 / fullscreenFps).toFixed(4));
-
-            // Ambil Resolusi Grid
-            const gridSelect = document.getElementById('grid-scale-select').value;
-            let gridW, gridH;
-            if (gridSelect === 'custom') {
-                gridW = parseInt(document.getElementById('grid-scale-w').value) || 640;
-                gridH = parseInt(document.getElementById('grid-scale-h').value) || 360;
-            } else {
-                [gridW, gridH] = gridSelect.split('x').map(Number);
-            }
-
-            // Ambil Resolusi Fullscreen
-            const fullscreenSelect = document.getElementById('fullscreen-scale-select').value;
-            let fsW, fsH;
-            if (fullscreenSelect === 'custom') {
-                fsW = parseInt(document.getElementById('fullscreen-scale-w').value) || 1280;
-                fsH = parseInt(document.getElementById('fullscreen-scale-h').value) || 720;
-            } else {
-                [fsW, fsH] = fullscreenSelect.split('x').map(Number);
-            }
-
-            // Payload yang dikirim ke Backend FastAPI
-            const payload = {
-                grid: {
-                    quality: 50,
-                    scale_width: gridW,
-                    scale_height: gridH,
-                    interval: gridIntervalSec
-                },
-                fullscreen: {
-                    quality: 70,
-                    scale_width: fsW,
-                    scale_height: fsH,
-                    interval: fullscreenIntervalSec
-                }
-            };
-
-            try {
-                const response = await fetch('/api/stream-settings', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    showToast('Konfigurasi Stream berhasil disimpan dan disiarkan ke seluruh Komputer!', 'success');
-                    closeStreamConfigModal();
-                } else {
-                    const err = await response.json();
-                    showToast('Gagal memperbarui: ' + (err.detail || 'Terjadi kesalahan'), 'error');
-                }
-            } catch (e) {
-                console.error(e);
-                alert('Gagal terhubung ke server.');
-            }
-        }
-
-        // Buka Modal Kunci
-        function openLockModal(targetSid) {
-            console.log("Membuka modal kunci untuk SID:", targetSid);
-            if (!targetSid) {
-                showToast("Target PC tidak valid!", 'error');
-                return;
-            }
-            document.getElementById('lock-target-sid').value = targetSid;
-            document.getElementById('lock-message-input').value = "DIKUNCI OLEH GURU";
-            document.getElementById('lock-password-input').value = "";
-            document.getElementById('lock-modal').classList.remove('hidden');
-
-            // 2. Beri jeda singkat agar DOM/animasi selesai diproses, lalu fokuskan input
-            setTimeout(() => {
-                const passwordInput = document.getElementById('lock-password-input');
-                if (passwordInput) {
-                    passwordInput.focus();
-                    passwordInput.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            submitLockCommand();
-                        }
-                    });
-                }
-            }, 50);
-        }
-
-        // Tutup Modal Kunci
-        function closeLockModal() {
-            document.getElementById('lock-modal').classList.add('hidden');
-        }
-
-        // Kirim Perintah Lock dari Modal
-        function submitLockCommand() {
-            const targetSid = document.getElementById('lock-target-sid').value;
-            const message = document.getElementById('lock-message-input').value.trim() || "DIKUNCI OLEH GURU";
-            const password = document.getElementById('lock-password-input').value.trim();
-
-            if (!targetSid) {
-                showToast("Gagal: Identitas target PC tidak ditemukan!", 'error');
-                return;
-            }
-
-            try {
-                const payload = {
-                    target_sid: targetSid,
-                    command: {
-                        action: 'lock',
-                        message: message,
-                        password: password
-                    }
-                };
-
-                const socketConn = (typeof sio !== 'undefined' && sio.connected) ? sio : (typeof socket !== 'undefined' && socket.connected ? socket : null);
-                if (socketConn) socketConn.emit("send_command", payload);
-
-                // Update Overlay UI Secara Aman
-                if (targetSid === 'all') {
-                    document.querySelectorAll('.lock-overlay').forEach(el => el.classList.remove('hidden'));
-                } else {
-                    const card = document.getElementById(`pc-${targetSid}`);
-                    if (card) {
-                        card.querySelector('.lock-overlay')?.classList.remove('hidden');
-                    }
-                }
-
-                showToast("Perintah kunci layar berhasil dikirim!", 'success');
-                closeLockModal();
-            } catch (err) {
-                console.error(err);
-                showToast("Gagal mengirim perintah kunci layar!", 'error');
-            }
-        }
-
-        // Kirim Perintah Unlock Langsung
-        function unlockScreen(targetSid) {
-            if (!targetSid) {
-                showToast("Gagal: Identitas target PC tidak valid!", 'error');
-                return;
-            }
-
-            try {
-                const payload = {
-                    target_sid: targetSid,
-                    command: { action: 'unlock' }
-                };
-
-                const socketConn = (typeof sio !== 'undefined' && sio.connected) ? sio : (typeof socket !== 'undefined' && socket.connected ? socket : null);
-                if (socketConn) socketConn.emit("send_command", payload);
-
-                // Update Overlay UI Secara Aman
-                if (targetSid === 'all') {
-                    document.querySelectorAll('.lock-overlay').forEach(el => el.classList.add('hidden'));
-                    document.querySelectorAll('.spinner-overlay').forEach(el => el.classList.remove('hidden'));
-                } else {
-                    const card = document.getElementById(`pc-${targetSid}`);
-                    if (card) {
-                        card.querySelector('.lock-overlay')?.classList.add('hidden');
-                        card.querySelector('.spinner-overlay')?.classList.remove('hidden');
-                    }
-                }
-
-                showToast("Kunci layar berhasil dibuka!", 'success');
-            } catch (err) {
-                console.error(err);
-                showToast("Gagal mengirim perintah buka kunci!", 'error');
-            }
-        }        // Buka Modal Rename
-        
-        function openRenameModal(deviceId, currentHostname) {
-            document.getElementById('rename-device-id').value = deviceId;
-            document.getElementById('rename-pc-modal').classList.remove('hidden');
-            
-            setTimeout(() => {
-                const inputField = document.getElementById('rename-hostname-input');
-                if (inputField) {
-                    inputField.value = document.querySelector(`#pc-${deviceId} .hostname-text`).textContent || currentHostname || '';
-                    inputField.focus();
-                    inputField.select();
-                    inputField.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            submitRenamePC();
-                        }
-                    });
-                }
-            }, 50); 
-        }
-
-        // Tutup Modal Rename
-        function closeRenameModal() {
-            document.getElementById('rename-pc-modal').classList.add('hidden');
-        }
-
-        // Kirim Perubahan ke Server via REST API
-        async function submitRenamePC() {
-            const deviceId = document.getElementById('rename-device-id').value;
-            const newName = document.getElementById('rename-hostname-input').value.trim();
-
-            if (!newName) {
-                showToast("Nama PC tidak boleh kosong!");
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/clients/rename', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_id: deviceId, new_name: newName })
-                });
-
-                if (response.ok) {
-                    showToast("Nama PC berhasil diperbarui!");
-                    closeRenameModal();
-
-                    // Update nama secara langsung di UI lokal tanpa refresh
-                    const hostnameSpan = document.querySelector(`#pc-${deviceId} .hostname-text`);
-                    if (hostnameSpan) {
-                        hostnameSpan.textContent = newName;
-                    }
-                } else {
-                    const err = await response.json();
-                    showToast("Gagal memperbarui: " + (err.detail || "Terjadi kesalahan"));
-                }
-            } catch (e) {
-                console.error(e);
-                showToast("Gagal terhubung ke server.");
-            }
-        }
 
         // Inisialisasi ikon saat pertama kali dibuka
         lucide.createIcons();
