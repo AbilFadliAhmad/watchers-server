@@ -2,10 +2,6 @@
 import sqlite3
 from auth import hash_password
 
-# --- DATABASE SETUP (SQLite) ---
-import sqlite3
-from auth import hash_password
-
 def init_db():
     conn = sqlite3.connect("watchers.db")
     cursor = conn.cursor()
@@ -56,6 +52,30 @@ def init_db():
         )
     """)
 
+    # 5. TABEL BARU: agent_installers (Menyimpan Metadata Installer OTA)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS agent_installers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            version TEXT NOT NULL,
+            url TEXT NOT NULL,
+            sha256 TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # 6. TABEL BARU: active_ota_config (Tabel Tunggal / Singleton - Maksimal 1 Baris)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS active_ota_config (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            name TEXT NOT NULL,
+            version TEXT NOT NULL,
+            url TEXT NOT NULL,
+            sha256 TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # 5. Data Akun Default
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
@@ -72,7 +92,7 @@ def init_db():
     # 6. Data Stream Settings Default (5 Kolom)
     default_settings = [
         ("grid", 50, 640, 360, 5.0),          # Grid: 5 detik/frame
-        ("fullscreen", 70, 1280, 720, 0.066),  # Fullscreen: ~15 FPS
+        ("fullscreen", 70, 1280, 720, 1.0),  # Fullscreen: ~1 FPS
     ]
     cursor.executemany(
         """

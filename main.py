@@ -6,14 +6,22 @@ import socketio
 import os
 import shutil
 from auth import (router as auth_router)
-from client_helper import update_clients_lock_status, upsert_client_and_get_status_and_name, verify_client_password
-from get_version import get_latest_watchers_version, parse_version
+from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_get_info_device, verify_client_password, parse_version, get_all_installers
 from management import (router as management_router, get_all_users, get_all_rooms, fetch_stream_config_from_db)
 from auth_middleware import get_current_user
 from init_db import init_db
 
-# 0. Dapatkan versi Aplikasi
-CURRENT_VERSION = get_latest_watchers_version()
+# Init DB
+init_db()
+
+# 0. INISIALISISAI VARIABEL GLOBAL UNTUK VERSI AGENT TERBARU
+CURRENT_VERSION = "0.0.0"
+CURRENT_SHA256 = ""
+CURRENT_URL_DOWNLOAD = ""
+get_active_installer_config()  # Memuat versi aktif terakhir dari database ke variabel global
+
+UPLOAD_DIR = "downloads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 1. Inisialisasi Socket.IO AsyncServer (Engine ASGI)
 sio = socketio.AsyncServer(
@@ -25,13 +33,10 @@ app = FastAPI(title="Watchers Server")
 app.include_router(auth_router) # daftarkan rute auth.py
 app.include_router(management_router) # daftarkan rute management.py
 
+app.mount("/downloads", StaticFiles(directory=UPLOAD_DIR), name="downloads")
 app.mount('/static', StaticFiles(directory='static'), name='static')
 templates = Jinja2Templates(directory="templates")
-UPLOAD_DIR = "downloads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Init DB
-init_db()
 STREAM_CONFIG = fetch_stream_config_from_db()
 print(f"[*] STREAM_CONFIG dimuat dari DB: {STREAM_CONFIG}")
 
@@ -66,7 +71,6 @@ async def disconnect(sid):
     # 2. Jika ditemukan, lakukan pop menggunakan key device_id tersebut
     if found_device_id:
         student = connected_students.pop(found_device_id)
-        print(f'murid Mas : {student}')
         print(f"[-] Siswa terputus: {student.get('name')}")
 
         # Beritahu semua dashboard guru bahwa siswa ini offline
@@ -96,8 +100,10 @@ async def disconnect(sid):
 
 @sio.on("start_focus_view") # type: ignore
 async def on_start_focus(sid, data):
-    target_sid = data.get("target_sid")
-    if not target_sid:
+    device_id = data.get("device_id")
+    target_sid = connected_students.get(device_id, {}).get("sid")
+
+    if not device_id or not target_sid:
         return
 
     if target_sid not in active_focus_viewers:
@@ -140,7 +146,7 @@ async def on_register_student(sid, data):
     device_id = data.get("device_id", hostname) # Fallback ke hostname jika device_id kosong
 
     # 2. Registrasi / Upsert ke Database SQLite Server & Ambil Status Lock
-    device_status = upsert_client_and_get_status_and_name(device_id, hostname)
+    device_status = upsert_client_and_get_info_device(device_id, hostname)
     name = device_status.get("name", hostname)
     student_room = name.split("-")[0].lower()
 
@@ -185,12 +191,11 @@ async def on_student_frame(sid, data):
     agent_version = telemetry.get("agent_version", "0.0.0")
 
     # --- LOGIKA PERBANDINGAN VERSI ---
-    if parse_version(agent_version) < parse_version(CURRENT_VERSION):
+    if agent_version != "0.0.0" and agent_version != CURRENT_VERSION:
         update_payload = {
             "latest_version": CURRENT_VERSION,
-            "download_url": (
-                f"/downloads/WatchersClient-v{CURRENT_VERSION}-x64.exe"
-            ),
+            "sha256": CURRENT_SHA256,
+            "download_url": CURRENT_URL_DOWNLOAD,
         }
 
         # Kirim sinyal update HANYA ke socket client ini (sid)
@@ -283,6 +288,8 @@ async def get_dashboard(request: Request, response: Response):
         user = await get_current_user(request, response)
         rooms = []
         users = []
+        installers = await get_all_installers()
+        print('installers:', installers)
 
         # Ambil data rooms & users hanya jika role direktur atau developer
         if user.get("role") in ["direktur", "developer"]:
@@ -299,6 +306,7 @@ async def get_dashboard(request: Request, response: Response):
                 "user": user,
                 "users": users, 
                 "rooms":rooms,
+                "installers": installers,
                 "stream_config": STREAM_CONFIG
             }
         )
@@ -316,7 +324,6 @@ async def get_login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html")
 
 # 2. Mount folder static agar file .exe dapat diakses publik via URL
-app.mount("/downloads", StaticFiles(directory=UPLOAD_DIR), name="downloads")
 
 @app.post("/upload-update")
 async def upload_ota_update(request: Request, file: UploadFile = File(...)):

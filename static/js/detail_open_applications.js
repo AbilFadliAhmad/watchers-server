@@ -38,6 +38,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 4. Tambahkan node elemen ke dokumen HTML menggunakan appendChild
         document.body.appendChild(modalElement);
+        
+        // Event Listener: Tutup saat area luar modal diklik atau menekan tombol ESC
+        document.getElementById('app-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'app-modal') closeAppModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeAppModal();
+        });
 
         // Render ulang ikon Lucide jika digunakan
         if (typeof lucide !== "undefined") {
@@ -100,12 +109,3 @@ function closeAppModal() {
         modal.classList.add('hidden');
     }, 200);
 }
-
-// Event Listener: Tutup saat area luar modal diklik atau menekan tombol ESC
-document.getElementById('app-modal').addEventListener('click', (e) => {
-    if (e.target.id === 'app-modal') closeAppModal();
-});
-
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeAppModal();
-});

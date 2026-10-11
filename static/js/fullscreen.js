@@ -36,9 +36,8 @@ async function openFullscreenView(sid, hostname) {
     // A. MASUKKAN STATE DUMMY KE BROWSER HISTORY (Agar Tombol Back HP/Browser Terperangkap)
     history.pushState({ inFullscreen: true }, "");
 
-    console.log('ada yang salah taa');
     // B. Beritahu server via SocketIO untuk beralih ke mode 15 FPS (focus)
-    socket.emit("start_focus_view", { target_sid: sid });
+    socket.emit("start_focus_view", { device_id: sid });
 }
 
 // 2. Fungsi Ambil & Download Screenshot Frame Saat Ini

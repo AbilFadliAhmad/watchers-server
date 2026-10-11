@@ -1,9 +1,15 @@
+from fileinput import filename
 import sqlite3
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Response, status
-from pydantic import BaseModel, Field, main
+from pydantic import BaseModel, Field
 from auth import hash_password
 from auth_middleware import get_current_user
+import hashlib
+import os
+from fastapi import File, Form, HTTPException, UploadFile, status
+
+from client_helper import parse_version_from_filename, save_installer_meta, set_active_installer_config
 
 router = APIRouter(prefix="/api", tags=["Management"])
 DB_NAME = "watchers.db"
@@ -524,4 +530,124 @@ async def api_rename_client(request: Request, payload: RenameClientSchema):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengubah nama PC: {str(e)}"
+        )
+
+@router.post("/upload-installer-chunk")
+async def upload_installer_chunk(
+    chunk: UploadFile = File(...),
+    filename: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    client_sha256: str = Form(...),
+    start_date: str = Form(...),  # Menerima timestamp awal dari client
+):
+    print('[DEBUG] Received chunk:', chunk_index + 1, 'of', total_chunks, 'for file:', filename)
+    if not filename.endswith(".exe") or not filename.startswith(
+        "WatchersAgent"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Nama file harus diawali dengan 'WatchersAgent' dan beresktensi"
+                " .exe!"
+            ),
+        )
+    from main import UPLOAD_DIR
+    temp_filename = f"chunk_{start_date}_{filename}"
+    temp_filepath = os.path.join(UPLOAD_DIR, temp_filename)
+    final_filepath = os.path.join(UPLOAD_DIR, filename)
+
+    # Chunk 0 tulis ulang file baru, chunk berikutnya gunakan mode append
+    write_mode = "wb" if chunk_index == 0 else "ab"
+
+    with open(temp_filepath, write_mode) as f:
+        f.write(await chunk.read())
+
+    # Jika ini adalah chunk terakhir, lakukan verifikasi SHA-256 dan pindahkan file
+    if chunk_index == total_chunks - 1:
+        sha256_hash = hashlib.sha256()
+        with open(temp_filepath, "rb") as f:
+            while content := f.read(1024 * 1024):
+                sha256_hash.update(content)
+
+        server_sha256 = sha256_hash.hexdigest().lower()
+
+        if server_sha256 != client_sha256.lower():
+            if os.path.exists(temp_filepath):
+                os.remove(temp_filepath)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Integritas file gagal! Hash SHA-256 server tidak cocok"
+                    " dengan client."
+                ),
+            )
+
+        os.replace(temp_filepath, final_filepath)
+
+        version = parse_version_from_filename(filename)
+        file_url = f"/downloads/{filename}"
+
+        await save_installer_meta(
+            name=filename, version=version, url=file_url, sha256=server_sha256
+        )
+
+        return {
+            "status": "success",
+            "message": "Upload dan verifikasi SHA-256 selesai!",
+            "data": {
+                "name": filename,
+                "version": version,
+                "url": file_url,
+                "sha256": server_sha256,
+            },
+        }
+
+    return {"status": "chunk_received", "chunk_index": chunk_index}
+
+# Definisikan Schema Request Body
+class SelectInstallerRequest(BaseModel):
+    name: str
+    version: str
+    url: str
+    sha256: str
+
+@router.post("/select-installer")
+async def select_installer(payload: SelectInstallerRequest):
+    """
+    Endpoint untuk memilih versi agent, memperbarui variabel global di main,
+    menyimpan ke database active_ota_config (1 baris), dan menyiarkan perintah update ke client.
+    """
+    try:
+        # Import main di dalam blok fungsi sesuai kebutuhan
+        from main import CURRENT_VERSION, CURRENT_SHA256, CURRENT_URL_DOWNLOAD
+        
+        # 1. Perbarui variabel di main
+        CURRENT_VERSION = payload.version
+        CURRENT_SHA256 = payload.sha256
+        CURRENT_URL_DOWNLOAD = payload.url
+
+        # 2. Simpan ke database (menimpa baris tunggal)
+        set_active_installer_config(
+            name=payload.name,
+            version=payload.version,
+            url=payload.url,
+            sha256=payload.sha256
+        )
+
+        return {
+            "status": "success",
+            "message": f"Versi v{payload.version} berhasil dipilih dan disiarkan!",
+            "active_config": {
+                "name": payload.name,
+                "version": payload.version,
+                "url": payload.url,
+                "sha256": payload.sha256
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal memproses pemilihan versi: {str(e)}"
         )

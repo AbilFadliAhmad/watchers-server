@@ -558,7 +558,7 @@
                                 <i data-lucide="shield-check" class="w-3 h-3"></i> 1 FPS (Kiri: Paling Hemat)
                             </span>
                             <span class="text-indigo-400 flex items-center gap-1">
-                                60 FPS (Kanan: Ultra Smooth / Boros) <i data-lucide="zap" class="w-3 h-3"></i>
+                                10 FPS (Kanan: Ultra Smooth / Boros) <i data-lucide="zap" class="w-3 h-3"></i>
                             </span>
                         </div>
                     </div>
@@ -612,6 +612,8 @@
         const socket = io();
         const activeAppsData = {}; // Menyimpan detail daftar aplikasi per SID
         const user = {{ user | tojson | safe }};
+        let agentLists = {{ installers |  safe }};
+        console.log("Agent Lists:", agentLists);
         let activeSid = null;
         let activeHostname = '';
 
