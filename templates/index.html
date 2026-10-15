@@ -183,6 +183,26 @@
 
     </section>
 
+    <!-- Section Search Bar & Tombol Opsi Multiselect -->
+    <section class="flex flex-col sm:flex-row items-center gap-3 mb-6">
+        <!-- Box 1: Search Bar Hostname PC -->
+        <div class="relative flex-1 w-full">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
+                <i data-lucide="search" class="w-4 h-4"></i>
+            </div>
+            <input type="text" id="search-hostname-input" oninput="filterPcsByHostname(this.value)" 
+                placeholder="Cari hostname PC..." 
+                class="w-full bg-gray-900 border border-gray-800 focus:border-indigo-500 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-gray-100 placeholder-gray-500 focus:outline-none transition shadow-lg">
+        </div>
+
+        <!-- Box 2: Tombol Toggle Bulatan / Multiselect -->
+        <button id="toggle-multiselect-btn" onclick="toggleMultiSelectMode()" 
+            class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white rounded-2xl text-xs font-semibold transition shadow-lg shrink-0">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-indigo-400"></i>
+            <span id="multiselect-btn-text">Pilih Banyak PC</span>
+        </button>
+    </section>
+
     <!-- Grid Kartu PC Siswa -->
     <main id="student-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         <!-- Kartu PC siswa dirender di sini -->
@@ -808,7 +828,7 @@
                         <button onclick="showAppDetails('${data.sid}', '${data.hostname}')" class="w-full text-xs bg-gray-950 hover:bg-gray-800 text-gray-300 border border-gray-800 py-2 px-3 rounded-lg flex items-center justify-between transition group">
                             <div class="flex items-center gap-2 overflow-hidden mr-1">
                                 <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
-                                <span class="truncate text-left">Aplikasi yang dibuka</span>
+                                <span class="truncate text-left">Aplikasi Aktif</span>
                             </div>
                             <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 shrink-0"></i>
                         </button>

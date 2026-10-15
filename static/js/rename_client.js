@@ -96,7 +96,7 @@ function openRenameModal(deviceId, currentHostname) {
     setTimeout(() => {
         const inputField = document.getElementById('rename-hostname-input');
         if (inputField) {
-            inputField.value = document.querySelector(`#pc-${deviceId} .hostname-text`).textContent || currentHostname || '';
+            inputField.value = document.querySelector(`#pc-${deviceId} .hostname-text`).textContent.trim() || currentHostname || '';
             inputField.focus();
             inputField.select();
             inputField.addEventListener('keydown', (e) => {

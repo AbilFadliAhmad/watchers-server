@@ -215,6 +215,7 @@ async function handleFileSelection(file) {
 }
 
 // 5. Render Elemen List Installer
+// 5. Render Elemen List Installer (Diperbarui dengan Tombol Hapus)
 function renderAgentLists() {
     const container = document.getElementById("agent-list-container");
 
@@ -244,8 +245,16 @@ function renderAgentLists() {
                         <p class="text-[10px] text-gray-500 font-mono truncate">SHA: ${agent.sha256}</p>
                     </div>
                 </div>
-                <div class="shrink-0">
+
+                <!-- Aksi: Radio Button & Tombol Hapus -->
+                <div class="flex items-center gap-2 shrink-0">
                     <input type="radio" name="selected_agent" ${isSelected ? "checked" : ""} class="accent-indigo-500 pointer-events-none">
+                    
+                    <button onclick="deleteInstaller('${agent.name}', event)" 
+                            class="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-950/50 rounded-lg transition cursor-pointer" 
+                            title="Hapus Installer">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
         `;
@@ -337,5 +346,56 @@ async function submitSelectedOtaUpdate() {
     } catch (error) {
         showToast('❌ Terjadi kesalahan jaringan saat memilih versi installer.', 'error');
         console.error(error);
+    }
+}
+
+// 9. Fungsi Hapus File Installer dari Server & UI
+async function deleteInstaller(filename, event) {
+    if (event) event.stopPropagation(); // Cegah eksekusi selectAgent saat tombol hapus diklik
+
+    const isConfirmed = await showConfirmToast(
+        `Apakah Anda yakin ingin menghapus installer '${filename}' dari server?`,
+        "warning"
+    );
+
+    if (!isConfirmed) return;
+
+    try {
+        const response = await fetch("/api/delete-installer", {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ filename: filename })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast(`🗑️ ${result.message || 'File installer berhasil dihapus.'}`);
+
+            // Reset selectedAgent jika file yang dihapus sedang terpilih
+            if (selectedAgent && selectedAgent.name === filename) {
+                selectedAgent = null;
+                const btnBroadcast = document.getElementById("btn-broadcast-update");
+                if (btnBroadcast) {
+                    btnBroadcast.disabled = true;
+                    btnBroadcast.className = "bg-gray-800 text-gray-500 text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-1.5 cursor-not-allowed";
+                }
+            }
+
+            // Hapus dari array agentLists lokal & re-render UI
+            agentLists = agentLists.filter(agent => agent.name !== filename);
+            
+            const badge = document.getElementById("agent-count-badge");
+            if (badge) badge.innerText = `${agentLists.length} File`;
+
+            renderAgentLists();
+        } else {
+            showToast(`⚠️ ${result.detail || 'Gagal menghapus file.'}`, "error");
+        }
+    } catch (error) {
+        console.error("Delete Error:", error);
+        showToast("❌ Terjadi kesalahan jaringan saat menghapus installer.", "error");
     }
 }

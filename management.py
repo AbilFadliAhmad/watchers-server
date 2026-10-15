@@ -8,8 +8,7 @@ from auth_middleware import get_current_user
 import hashlib
 import os
 from fastapi import File, Form, HTTPException, UploadFile, status
-
-from client_helper import parse_version_from_filename, save_installer_meta, set_active_installer_config
+from client_helper import delete_installer_meta, parse_version_from_filename, save_installer_meta, set_active_installer_config
 
 router = APIRouter(prefix="/api", tags=["Management"])
 DB_NAME = "watchers.db"
@@ -469,7 +468,7 @@ def update_client_name_in_db(device_id: str, new_name: str):
     conn = sqlite3.connect("watchers.db")
     cursor = conn.cursor()
     try:
-        print(f"[DEBUG] Updating client name in DB: device_id={device_id}, new_name={new_name}")
+        print(f"[] Updating client name in DB: device_id={device_id}, new_name={new_name}")
         cursor.execute(
             """
             UPDATE clients
@@ -541,7 +540,6 @@ async def upload_installer_chunk(
     client_sha256: str = Form(...),
     start_date: str = Form(...),  # Menerima timestamp awal dari client
 ):
-    print('[DEBUG] Received chunk:', chunk_index + 1, 'of', total_chunks, 'for file:', filename)
     if not filename.endswith(".exe") or not filename.startswith(
         "WatchersAgent"
     ):
@@ -620,12 +618,12 @@ async def select_installer(payload: SelectInstallerRequest):
     """
     try:
         # Import main di dalam blok fungsi sesuai kebutuhan
-        from main import CURRENT_VERSION, CURRENT_SHA256, CURRENT_URL_DOWNLOAD
-        
-        # 1. Perbarui variabel di main
-        CURRENT_VERSION = payload.version
-        CURRENT_SHA256 = payload.sha256
-        CURRENT_URL_DOWNLOAD = payload.url
+        import main
+
+        # 1. Perbarui variabel global langsung pada atribut modul 'main'
+        main.CURRENT_VERSION = payload.version
+        main.CURRENT_SHA256 = payload.sha256
+        main.CURRENT_URL_DOWNLOAD = payload.url
 
         # 2. Simpan ke database (menimpa baris tunggal)
         set_active_installer_config(
@@ -651,3 +649,34 @@ async def select_installer(payload: SelectInstallerRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal memproses pemilihan versi: {str(e)}"
         )
+
+# Model Request Payload
+class DeleteInstallerRequest(BaseModel):
+    filename: str
+
+@router.delete("/delete-installer")
+async def delete_installer(payload: DeleteInstallerRequest):
+    filename = payload.filename
+
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Nama file tidak valid.")
+
+    installer_dir = os.path.join(os.getcwd(), "downloads")
+    file_path = os.path.join(installer_dir, filename)
+
+    # 1. Hapus record dari database SQLite
+    await delete_installer_meta(filename)
+
+    # 2. Hapus file fisik jika ada di storage server
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Gagal menghapus file fisik: {str(e)}"
+            )
+
+    return {
+        "status": "success",
+        "message": f"Installer '{filename}' berhasil dihapus dari database dan server.",
+    }

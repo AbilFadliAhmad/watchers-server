@@ -78,12 +78,17 @@ function showAppDetails(sid, hostname) {
         const ignoredApps = ['settings', 'windows input experience', 'program manager'];
         // Filter aplikasi terlebih dahulu
         const filteredApps = apps.filter(app => !ignoredApps.includes(app.toLowerCase().trim()));
+        
         modalAppList.innerHTML = filteredApps.map((app, index) => `
-            <div class="flex items-center gap-3 bg-gray-950 border border-gray-800/80 p-2.5 rounded-xl">
-                <span class="text-[11px] font-mono font-bold text-indigo-400 bg-indigo-950/60 border border-indigo-800/50 w-6 h-6 rounded-lg flex items-center justify-center shrink-0">
-                    ${index + 1}
-                </span>
-                <span class="text-xs text-gray-200 truncate font-medium">${app}</span>
+            <div class="flex items-start justify-between gap-3 bg-gray-950 border border-gray-800/80 p-2.5 rounded-xl">
+                <div onclick="toggleAppText(${index})"  class="flex items-start gap-3 min-w-0 flex-1 cursor-pointer">
+                    <span class="text-[11px] font-mono font-bold text-indigo-400 bg-indigo-950/60 border border-indigo-800/50 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                        ${index + 1}
+                    </span>
+                    <span id="app-text-${index}" class="text-xs text-gray-200 line-clamp-1 font-medium break-words leading-relaxed">
+                        ${app}
+                    </span>
+                </div>
             </div>
         `).join('');
     }
@@ -96,6 +101,20 @@ function showAppDetails(sid, hostname) {
         modal.classList.remove('opacity-0');
         modalCard.classList.remove('scale-95');
     }, 10);
+}
+
+// Fungsi Helper untuk toggle pembukaan detail teks
+function toggleAppText(index) {
+    const textEl = document.getElementById(`app-text-${index}`);
+    if (!textEl) return;
+
+    if (textEl.classList.contains('line-clamp-1')) {
+        // Hilangkan pembatasan baris (tampilkan detail penuh)
+        textEl.classList.remove('line-clamp-1');
+    } else {
+        // Kembalikan ke 1 baris
+        textEl.classList.add('line-clamp-1');
+    }
 }
 
 // Tutup Modal dengan Transisi Smooth

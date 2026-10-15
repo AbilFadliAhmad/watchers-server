@@ -6,7 +6,7 @@ import socketio
 import os
 import shutil
 from auth import (router as auth_router)
-from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_get_info_device, verify_client_password, parse_version, get_all_installers
+from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_get_info_device, verify_client_password, get_all_installers
 from management import (router as management_router, get_all_users, get_all_rooms, fetch_stream_config_from_db)
 from auth_middleware import get_current_user
 from init_db import init_db
@@ -189,14 +189,18 @@ async def on_student_frame(sid, data):
     device_id = data.get("device_id", sid)
     telemetry = data.get("telemetry") or {}
     agent_version = telemetry.get("agent_version", "0.0.0")
+    hostname = connected_students.get(device_id, {}).get("hostname", "Unknown-PC")
+    # print(CURRENT_VERSION, agent_version)
 
     # --- LOGIKA PERBANDINGAN VERSI ---
-    if agent_version != "0.0.0" and agent_version != CURRENT_VERSION:
+    if CURRENT_VERSION != "0.0.0" and agent_version != CURRENT_VERSION:
         update_payload = {
             "latest_version": CURRENT_VERSION,
             "sha256": CURRENT_SHA256,
             "download_url": CURRENT_URL_DOWNLOAD,
         }
+
+        print(f"[DEBUG] payload update dikirim ke {device_id}: {update_payload}", flush=True)
 
         # Kirim sinyal update HANYA ke socket client ini (sid)
         await sio.emit("trigger_update", update_payload, to=sid)
@@ -205,16 +209,18 @@ async def on_student_frame(sid, data):
     payload = {
         "sid": device_id,
         "hostname": connected_students.get(device_id, {}).get(
-            "name", "Unknown-PC"
+            "name", hostname
         ),
         "telemetry": telemetry,
         "image": data.get("image"),  # Bytes / WebP Frame
     }
+    print(f"[DEBUG] payload frame dikirim ke guru: {connected_students}", flush=True)
 
     target_rooms = [
         "teachers",
         str(payload.get("hostname")).split("-")[0].lower(),
     ]
+    
     await sio.emit("update_student_card", payload, room=target_rooms)
 
 @sio.on("send_command") # type: ignore

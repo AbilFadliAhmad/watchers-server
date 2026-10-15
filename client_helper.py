@@ -139,6 +139,26 @@ async def save_installer_meta(name: str, version: str, url: str, sha256: str):
     conn.commit()
     conn.close()
 
+async def delete_installer_meta(name: str) -> bool:
+    """Menghapus metadata installer dari database berdasarkan nama."""
+    conn = sqlite3.connect("watchers.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        DELETE FROM agent_installers
+        WHERE name = ?
+    """,
+        (name,),
+    )
+
+    rows_affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+
+    # Mengembalikan True jika ada data yang terhapus, False jika nama tidak ditemukan
+    return rows_affected > 0
+
 def set_active_installer_config(
     name: str, version: str, url: str, sha256: str
 ):
@@ -176,11 +196,11 @@ def get_active_installer_config():
     row = cursor.fetchone()
     conn.close()
 
-    from main import CURRENT_VERSION, CURRENT_SHA256, CURRENT_URL_DOWNLOAD
+    import main
 
-    CURRENT_VERSION = row["version"] if row else "0.0.0"
-    CURRENT_SHA256 = row["sha256"] if row else ""
-    CURRENT_URL_DOWNLOAD = row["url"] if row else ""
+    main.CURRENT_VERSION = row["version"] if row else "0.0.0"
+    main.CURRENT_SHA256 = row["sha256"] if row else ""
+    main.CURRENT_URL_DOWNLOAD = row["url"] if row else ""
 
     return dict(row) if row else None
 
