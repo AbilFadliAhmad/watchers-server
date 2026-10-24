@@ -14,9 +14,9 @@ load_dotenv()
 # Konfigurasi Keamanan JWT
 SECRET_KEY = os.environ.get("SECRET_KEY")
 REFRESH_SECRET_KEY = os.environ.get("REFRESH_SECRET_KEY")
-ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+ALGORITHM = "HS256"
 
 # Inisialisasi Rute
 router = APIRouter()
@@ -60,8 +60,19 @@ async def login(credentials: LoginSchema):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT * FROM users WHERE username = ?", (credentials.username,)
+        """
+        SELECT 
+            u.*, 
+            ro.name AS role, 
+            rm.name AS room
+        FROM users AS u
+        LEFT JOIN roles AS ro ON u.role_id = ro.id
+        LEFT JOIN rooms AS rm ON u.room_id = rm.id
+        WHERE u.username = ?
+        """,
+        (credentials.username,)
     )
+
     user = cursor.fetchone()
     conn.close()
 
@@ -77,7 +88,7 @@ async def login(credentials: LoginSchema):
     # Buat Access Token & Refresh Token
     token_payload = {"sub": user["username"], "role": user["role"]}
     access_token = create_token(
-        token_payload, timedelta(minutes=1)
+        token_payload, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
 
     refresh_token = create_token(
@@ -101,6 +112,7 @@ async def login(credentials: LoginSchema):
         httponly=True,
         samesite="lax",
         secure=True,  # Ubah ke True pada domain HTTPS
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
     res.set_cookie(
@@ -109,6 +121,7 @@ async def login(credentials: LoginSchema):
         httponly=True,
         samesite="lax",
         secure=True,  # Ubah ke True pada domain HTTPS
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
     )
 
     return res

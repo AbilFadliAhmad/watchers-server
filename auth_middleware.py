@@ -26,12 +26,14 @@ async def get_current_user(request: Request, response: Response) -> dict:
     """Dependency untuk mengambil detail data pengguna dari SQLite & auto-refresh token jika expired."""
     access_token = request.cookies.get("access_token")
     refresh_token = request.cookies.get("refresh_token")
+    print("berhasil ganti nama tidak? \n",  access_token, "\n", refresh_token)
 
     payload, error = (
         verify_token(access_token, SECRET_KEY)
         if access_token
         else (None, "missing")
     )
+    print("payload", payload, "error", error)
 
     # 1. Jika access_token expired atau tidak ada, periksa refresh_token
     if error in ["expired", "missing"]:
@@ -72,13 +74,16 @@ async def get_current_user(request: Request, response: Response) -> dict:
             httponly=True,
             samesite="lax",
             secure=True,
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         )
+
         response.set_cookie(
             key="refresh_token",
             value=new_refresh_token,
             httponly=True,
             samesite="lax",
             secure=True,
+            max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         )
 
     elif error == "invalid":
@@ -96,7 +101,17 @@ async def get_current_user(request: Request, response: Response) -> dict:
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT id, username, role, room FROM users WHERE username = ?",
+        """
+        SELECT 
+            u.id, 
+            u.username, 
+            r.name AS role, 
+            rm.name AS room
+        FROM users u
+        INNER JOIN roles r ON u.role_id = r.id
+        INNER JOIN rooms rm ON u.room_id = rm.id
+        WHERE u.username = ?
+        """,
         (username,),
     )
     user = cursor.fetchone()
@@ -110,4 +125,3 @@ async def get_current_user(request: Request, response: Response) -> dict:
 
     # Mengembalikan dict berisi: {"id": 1, "username": "...", "role": "..."}
     return dict(user)
-

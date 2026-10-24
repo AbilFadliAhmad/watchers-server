@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File,Response, status, Request, HTTPException, UploadFile
+from fastapi import FastAPI, File,Response, status, Request, HTTPException, UploadFile, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -6,9 +6,10 @@ import socketio
 import os
 import shutil
 from auth import (router as auth_router)
-from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_get_info_device, verify_client_password, get_all_installers
-from management import (router as management_router, get_all_users, get_all_rooms, fetch_stream_config_from_db)
+from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_get_info_device, verify_client_password
+from management import (router as management_router, get_management_data, fetch_stream_config_from_db, get_logs_data, record_activity_log)
 from auth_middleware import get_current_user
+from typing import Optional
 from init_db import init_db
 
 # Init DB
@@ -74,7 +75,7 @@ async def disconnect(sid):
         print(f"[-] Siswa terputus: {student.get('name')}")
 
         # Beritahu semua dashboard guru bahwa siswa ini offline
-        await sio.emit("student_disconnected", student, room="teachers")
+        await sio.emit("student_disconnected", student, room="all")
 
     elif sid in teacher_sids:
         to_remove = []  # untuk hapus fullscreen
@@ -134,7 +135,7 @@ async def on_stop_focus(sid, data):
 
 @sio.on("register_teacher") # type: ignore
 async def on_register_teacher(sid, data):
-    """Mendaftarkan koneksi browser guru ke room 'teachers'."""
+    """Mendaftarkan koneksi browser guru ke room 'all'."""
     room_name = data.get('user').get('room')
     await sio.enter_room(sid, room_name)
     await sio.save_session(sid, {'room': room_name})
@@ -160,14 +161,13 @@ async def on_register_student(sid, data):
         "mode": "grid",
     }
 
-    await sio.enter_room(sid, student_room)
-    await sio.enter_room(sid, "teachers")
+    target_rooms = ["all", student_room]
 
-    target_rooms = ["teachers", student_room]
-    await sio.emit(
-        "student_connected", name, room=target_rooms
-    )
-    
+    # sio enter parameter kedua harus berupa string tunggal tapi sio emit roomnya bisa banyak array jadi saya sederhanakan saja menjadi menggunakan cara pertama agar lebih ringas
+    for room in target_rooms:
+        await sio.enter_room(sid, room)
+        await sio.emit('student_conencted', name, room=room)
+
     # PERBAIKAN: Kirimkan konfigurasi stream terbaru langsung ke PC Siswa saat baru connect
     await sio.emit("update_config", STREAM_CONFIG, to=sid)
 
@@ -205,7 +205,7 @@ async def on_student_frame(sid, data):
         # Kirim sinyal update HANYA ke socket client ini (sid)
         await sio.emit("trigger_update", update_payload, to=sid)
 
-    # Data disalurkan HANYA ke client yang berada di room 'teachers'
+    # Data disalurkan HANYA ke client yang berada di room 'all'
     payload = {
         "sid": device_id,
         "hostname": connected_students.get(device_id, {}).get(
@@ -217,7 +217,7 @@ async def on_student_frame(sid, data):
     print(f"[DEBUG] payload frame dikirim ke guru: {connected_students}", flush=True)
 
     target_rooms = [
-        "teachers",
+        "all",
         str(payload.get("hostname")).split("-")[0].lower(),
     ]
     
@@ -229,10 +229,12 @@ async def on_send_command(sid, data):
     Menerima perintah remot dari Web Dashboard Guru dan meneruskannya ke Client Siswa.
     Payload: {"target_sid": "all" | "DEVICE_ID", "command": {"action": "lock" | "unlock", ...}}
     """
+
     command = data.get("command", {})
     action = command.get("action")
     raw_target = data.get("target_sid")
     target_room = (await sio.get_session(sid) or {}).get('room', '')
+    executed_by = data.get("executed_by")
 
     # 1. Tentukan target socket SID untuk penyiaran websocket
     if raw_target == "all":
@@ -263,7 +265,33 @@ async def on_send_command(sid, data):
             password=pwd
         )
 
-    # 3. KIRIM PERINTAH LEWAT WEBSOCKET
+    # 3. MENCATAT ACTIVITY LOG
+    if action:
+        # Ekstrak detail pesan/catatan berdasarkan jenis perintah
+        log_details = ""
+        if action == "lock":
+            log_details = command.get("message", "Layar dikunci oleh pengajar")
+        elif action == "unlock":
+            log_details = "Membuka kuncian layar"
+        elif action == "message":
+            log_details = command.get("message", "")
+        elif action == "open_url":
+            log_details = command.get("url", "")
+        elif action == "macro":
+            log_details = command.get("text", "")
+        elif action == "shutdown":
+            log_details = command.get("reason", "Perintah matikan PC")
+        elif action == "ota_update":
+            log_details = "Pembaruan versi agent client"
+
+        record_activity_log(
+            client_id=raw_target,
+            action_type=action,
+            details=log_details,
+            executed_by=executed_by
+        )
+
+    # 4. KIRIM PERINTAH LEWAT WEBSOCKET
     if socket_target == "all":
         # Kirim perintah ke seluruh client di room guru
         await sio.emit("command", command, skip_sid=list(teacher_sids), room=target_room)
@@ -286,38 +314,34 @@ async def on_verify_unlock_password(sid, data):
     await verify_client_password(input_password=input_password, device_id=device_id, sid=sid, sio=sio)
 
 # --- FASTAPI HTTP ROUTES ---
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def get_dashboard(request: Request, response: Response):
-    """Menyajikan halaman Web Dashboard dengan proteksi autentikasi."""
+    """Menyajikan halaman Web Dashboard dengan data manajemen terpadu."""
     try:
-        # Mengambil data detail user dari SQLite
         user = await get_current_user(request, response)
-        rooms = []
-        users = []
-        installers = await get_all_installers()
-        print('installers:', installers)
+        mgmt_data = await get_management_data(user.get("role", ""))
 
-        # Ambil data rooms & users hanya jika role direktur atau developer
-        if user.get("role") in ["direktur", "developer"]:
-            res_rooms = await get_all_rooms()
-            res_users = await get_all_users()
-
-            rooms = res_rooms.get('data', [])
-            users = res_users.get('data', [])
-
-        return templates.TemplateResponse(
-            request=request, 
-            name="index.html", 
+        template_res =  templates.TemplateResponse(
+            request=request,
+            name="index.html",
             context={
                 "user": user,
-                "users": users, 
-                "rooms":rooms,
-                "installers": installers,
+                "users": mgmt_data["users"],
+                "rooms": mgmt_data["rooms"],
+                "roles": mgmt_data["roles"],
+                "installers": mgmt_data["installers"],
                 "stream_config": STREAM_CONFIG
             }
         )
+
+        # Salin cookie dari dependency ke TemplateResponse
+        for key, value in response.headers.items():
+            if key.lower() == "set-cookie":
+                template_res.headers.append("set-cookie", value)
+
+        return template_res
+
     except HTTPException as e:
-        # Jika token tidak ada, kadaluarsa, atau invalid, redirect langsung ke halaman login
         if e.status_code == status.HTTP_401_UNAUTHORIZED:
             return RedirectResponse(
                 url="/login", status_code=status.HTTP_302_FOUND
@@ -325,11 +349,49 @@ async def get_dashboard(request: Request, response: Response):
         raise e
 
 @app.get("/login", response_class=HTMLResponse)
-async def get_login_page(request: Request):
-    """Menyajikan halaman login."""
+async def get_login_page(request: Request, response: Response):
+    """Menyajikan halaman login. Jika pengguna sudah login, redirect ke halaman utama."""
+    try:
+        # Cek sesi autentikasi pengguna saat ini
+        user = await get_current_user(request, response)
+        if user:
+            return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+        else:
+            # Memicu HTTPException secara manual agar melompat ke blok except di bawah
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    except HTTPException:
+            # Jika token tidak ada / expired (401), biarkan lanjut menampilkan halaman login
+            pass
+
     return templates.TemplateResponse(request=request, name="login.html")
 
-# 2. Mount folder static agar file .exe dapat diakses publik via URL
+@app.get("/logs", response_class=HTMLResponse)
+async def get_logs_page(
+        request: Request,
+        response: Response,
+        action: Optional[str] = Query(None)
+):
+    """Menyajikan halaman HTML khusus Log & Teguran."""
+    try:
+        user = await get_current_user(request, response)
+        # Panggil helper function untuk mengambil data log
+        log_data = await get_logs_data(current_user=user, action=action)
+        return templates.TemplateResponse(
+            request=request,
+            name="log.html",
+            context={
+                "user": user,
+                "logs": log_data["logs"],
+                "top_offenders": log_data["top_offenders"],
+                "selected_action": action or ""
+            }
+        )
+    except HTTPException as e:
+        if e.status_code == status.HTTP_401_UNAUTHORIZED:
+            return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        raise e
+
 
 @app.post("/upload-update")
 async def upload_ota_update(request: Request, file: UploadFile = File(...)):

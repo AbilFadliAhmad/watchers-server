@@ -94,30 +94,6 @@ async def verify_client_password(input_password: str, device_id: str, sid: str, 
     finally:
         conn.close()
 
-async def get_all_installers():
-    """Mengambil semua daftar installer dari database untuk direspon ke endpoint API."""
-
-    # Regex ketat untuk pola: WatchersAgent-vX.Y.Z-ARCH.exe
-    WATCHER_FILENAME_REGEX = re.compile(
-        r"^WatchersAgent-v\d+\.\d+\.\d+-(x64|x86|arm64)\.exe$", re.IGNORECASE
-    )
-
-    conn = sqlite3.connect("watchers.db")
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "SELECT name, version, url, sha256 FROM agent_installers ORDER BY"
-        " id DESC"
-    )
-    rows = cursor.fetchall()
-    conn.close()
-
-    # Memfilter hasil query berdasarkan pola nama yang sesuai
-    return [
-        dict(row) for row in rows if WATCHER_FILENAME_REGEX.match(row["name"])
-    ]
-
 async def save_installer_meta(name: str, version: str, url: str, sha256: str):
     """Menyimpan atau memperbarui metadata installer di database."""
     conn = sqlite3.connect("watchers.db")

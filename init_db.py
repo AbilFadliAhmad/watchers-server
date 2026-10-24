@@ -15,21 +15,31 @@ def init_db():
             name TEXT UNIQUE NOT NULL
         )
     """)
-    cursor.execute("INSERT OR IGNORE INTO rooms (name) VALUES ('teachers')")
+    cursor.execute("INSERT OR IGNORE INTO rooms (id, name) VALUES (1, 'all')")
 
-    # 2. Tabel users
+    # 2. Tabel roles
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL
+        )
+    """)
+    cursor.execute("INSERT OR IGNORE INTO roles (id, name) VALUES (1, 'admin')")
+
+    # 3. Tabel users dengan Foreign Key role_id dan room_id
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            role TEXT CHECK(role IN ('dosen', 'direktur', 'developer')) NOT NULL,
-            room TEXT NOT NULL DEFAULT 'teachers',
-            FOREIGN KEY (room) REFERENCES rooms(name) ON DELETE RESTRICT ON UPDATE CASCADE
+            role_id INTEGER NOT NULL DEFAULT 1,
+            room_id INTEGER NOT NULL DEFAULT 1,
+            FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+            FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE RESTRICT ON UPDATE CASCADE
         )
     """)
 
-    # 3. Tabel stream_settings
+    # 4. Tabel stream_settings
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS stream_settings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,18 +51,20 @@ def init_db():
         )
     """)
 
-    # 4. TABEL BARU: clients (Menyimpan Perangkat Unik & Status Lock)
+    # 5. Tabel clients (Diperbarui)
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS clients (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            is_locked INTEGER DEFAULT 0,
-            message TEXT DEFAULT '',
-            password TEXT DEFAULT ''
-        )
-    """)
+            CREATE TABLE IF NOT EXISTS clients (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                is_locked INTEGER DEFAULT 0,
+                message TEXT DEFAULT '',
+                password TEXT DEFAULT ''
+            )
+        """)
+    # Membuat Index untuk mempercepat query pencarian awalan (LIKE 'dm%')
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_clients_hostname ON clients(name)")
 
-    # 5. TABEL BARU: agent_installers (Menyimpan Metadata Installer OTA)
+    # 6. Tabel agent_installers
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS agent_installers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +76,7 @@ def init_db():
         )
     """)
 
-    # 6. TABEL BARU: active_ota_config (Tabel Tunggal / Singleton - Maksimal 1 Baris)
+    # 7. Tabel active_ota_config
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS active_ota_config (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -76,23 +88,21 @@ def init_db():
         )
     """)
 
-    # 5. Data Akun Default
+    # 8. Data Akun Default (Menggunakan role_id=1 & room_id=1)
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
         default_users = [
-            ("developer", hash_password("123"), "developer", "teachers"),
-            ("dosen", hash_password("123"), "dosen", "teachers"),
-            ("direktur", hash_password("123"), "direktur", "teachers"),
+            ("direktur", hash_password("123"), 1, 1),
         ]
         cursor.executemany(
-            "INSERT INTO users (username, password_hash, role, room) VALUES (?, ?, ?, ?)",
+            "INSERT INTO users (username, password_hash, role_id, room_id) VALUES (?, ?, ?, ?)",
             default_users,
         )
 
-    # 6. Data Stream Settings Default (5 Kolom)
+    # 9. Data Stream Settings Default
     default_settings = [
-        ("grid", 50, 640, 360, 5.0),          # Grid: 5 detik/frame
-        ("fullscreen", 70, 1280, 720, 1.0),  # Fullscreen: ~1 FPS
+        ("grid", 50, 640, 360, 5.0),
+        ("fullscreen", 70, 1280, 720, 1.0),
     ]
     cursor.executemany(
         """
@@ -101,6 +111,21 @@ def init_db():
         """,
         default_settings,
     )
+
+    # 10. TABEL BARU: activity_logs (Tanpa hostname, index pada client_id)
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                client_id TEXT NOT NULL,
+                action_type TEXT NOT NULL CHECK(action_type IN ('message', 'lock', 'unlock', 'open_url', 'macro', 'shutdown', 'ota_update')),
+                details TEXT DEFAULT '',
+                executed_by TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+            )
+        """)
+    # Membuat Index pada client_id
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_client_id ON activity_logs(client_id)")
 
     conn.commit()
     conn.close()

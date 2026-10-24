@@ -1,7 +1,6 @@
-from fileinput import filename
 import sqlite3
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from auth import hash_password
 from auth_middleware import get_current_user
@@ -9,31 +8,172 @@ import hashlib
 import os
 from fastapi import File, Form, HTTPException, UploadFile, status
 from client_helper import delete_installer_meta, parse_version_from_filename, save_installer_meta, set_active_installer_config
+import re
 
 router = APIRouter(prefix="/api", tags=["Management"])
 DB_NAME = "watchers.db"
 
 # --- HELPER: GET ALL ROOMS & USERS ---
-async def get_all_rooms():
+async def get_management_data(user_role: str) -> dict:
+    """Mengambil seluruh data manajemen (rooms, roles, users, installers)
+    dalam 1 kali buka-tutup koneksi database.
+    """
+    empty_result = {"rooms": [], "roles": [], "users": [], "installers": []}
+
+    # Hak akses khusus manajemen
+    if user_role not in ["admin"]:
+        return empty_result
+
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM rooms ORDER BY id ASC")
-    rooms = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return {"status": "success", "data": rooms}
 
-async def get_all_users():
+    try:
+        # 1. Ambil Rooms
+        cursor.execute("SELECT id, name FROM rooms ORDER BY id ASC")
+        rooms = [dict(row) for row in cursor.fetchall()]
+
+        # 2. Ambil Roles
+        cursor.execute("SELECT id, name FROM roles ORDER BY id ASC")
+        roles = [dict(row) for row in cursor.fetchall()]
+
+        # 3. Ambil Users (JOIN ke Roles & Rooms)
+        cursor.execute("""
+            SELECT 
+                u.id, 
+                u.username, 
+                r.name AS role, 
+                rm.name AS room
+            FROM users u
+            INNER JOIN roles r ON u.role_id = r.id
+            INNER JOIN rooms rm ON u.room_id = rm.id
+            ORDER BY u.id ASC
+        """)
+        users = [dict(row) for row in cursor.fetchall()]
+
+        # 4. Ambil Installers OTA
+        cursor.execute(
+            "SELECT name, version, url, sha256 FROM agent_installers ORDER BY id DESC"
+        )
+        installer_rows = cursor.fetchall()
+
+        WATCHER_FILENAME_REGEX = re.compile(
+            r"^WatchersAgent-v\d+\.\d+\.\d+-(x64|x86|arm64)\.exe$", re.IGNORECASE
+        )
+        installers = [
+            dict(row) for row in installer_rows if WATCHER_FILENAME_REGEX.match(row["name"])
+        ]
+
+        return {
+            "rooms": rooms,
+            "roles": roles,
+            "users": users,
+            "installers": installers,
+        }
+
+    finally:
+        conn.close()
+
+# --- HELPER FUNCTION: MENCATAT LOG AKTIVITAS ---
+def record_activity_log(client_id: str, action_type: str, details: str, executed_by: str):
+    """Mencatat aktivitas perintah ke tabel activity_logs."""
+    try:
+        conn = sqlite3.connect("watchers.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO activity_logs (client_id, action_type, details, executed_by)
+            VALUES (?, ?, ?, ?)
+            """,
+            (client_id, action_type, details, executed_by)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Gagal mencatat log aktivitas: {e}")
+
+# --- HELPER: MENGAMBIL DATA LOGS ---
+async def get_logs_data(current_user: dict, action: Optional[str] = None, limit: int = 100) -> dict:
+    """
+    Mengambil data log aktivitas & rekapitulasi teguran dari database.
+    Filter otomatis berdasarkan nama room pengguna (LIKE 'room%') kecuali jika room = 'all' atau role admin/developer/direktur.
+    """
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, username, role, room FROM users ORDER BY id ASC"
-    )
-    users = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return {"status": "success", "data": users}
 
+    user_room = current_user.get("room", "all").lower()
+    user_role = current_user.get("role", "").lower()
+
+    where_conditions = []
+    params = []
+
+    # 1. Filter berdasarkan Room Name (c.name LIKE 'room%')
+    if user_room != "all" and user_role not in ["admin", "developer", "direktur"]:
+        where_conditions.append("LOWER(c.name) LIKE ?")
+        params.append(f"{user_room}%")
+
+    # 2. Filter berdasarkan Jenis Aksi
+    if action and action.strip():
+        where_conditions.append("l.action_type = ?")
+        params.append(action.strip())
+
+    sql_where = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+
+    logs_query = f"""
+        SELECT 
+            l.id,
+            l.client_id,
+            COALESCE(c.name, l.client_id) AS hostname,
+            l.action_type,
+            l.details,
+            l.executed_by,
+            l.created_at
+        FROM activity_logs l
+        LEFT JOIN clients c ON l.client_id = c.id
+        {sql_where}
+        ORDER BY l.id DESC
+        LIMIT ?
+    """
+    params.append(limit)
+    cursor.execute(logs_query, tuple(params))
+    logs = [dict(row) for row in cursor.fetchall()]
+
+    # 3. Query Rekapitulasi Top 5 PC Sering Ditegur/Dikunci
+    stats_where_conditions = []
+    stats_params = []
+
+    if user_room != "all" and user_role not in ["admin", "developer", "direktur"]:
+        stats_where_conditions.append("LOWER(c.name) LIKE ?")
+        stats_params.append(f"{user_room}%")
+
+    stats_where_conditions.append("l.client_id != 'all'")
+    stats_sql_where = f"WHERE {' AND '.join(stats_where_conditions)}"
+
+    stats_query = f"""
+        SELECT 
+            COALESCE(c.name, l.client_id) AS hostname,
+            COUNT(*) as total_actions,
+            SUM(CASE WHEN l.action_type = 'lock' THEN 1 ELSE 0 END) as lock_count,
+            SUM(CASE WHEN l.action_type = 'message' THEN 1 ELSE 0 END) as warning_count
+        FROM activity_logs l
+        LEFT JOIN clients c ON l.client_id = c.id
+        {stats_sql_where}
+        GROUP BY COALESCE(c.name, l.client_id)
+        ORDER BY total_actions DESC
+        LIMIT 5
+    """
+    cursor.execute(stats_query, tuple(stats_params))
+    top_offenders = [dict(row) for row in cursor.fetchall()]
+
+    conn.close()
+
+    return {
+        "status": "success",
+        "current_room_filter": user_room,
+        "logs": logs,
+        "top_offenders": top_offenders
+    }
 # --- HELPER : GET DATA CONFIG STREAMING ---
 def fetch_stream_config_from_db():
     """Mengambil konfigurasi dari SQLite dan menyusunnya ke dict RAM."""
@@ -79,7 +219,96 @@ class UserCreateSchema(BaseModel):
     room: Optional[str] = Field("teachers", example="teachers")
 
 
-# --- ENDPOINT 1: REGISTER ROOM BARU ---
+# --- ENDPOINT 1: UPDATE PROFIL ---
+
+# Schema Request Body
+class ProfileUpdateRequest(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    room: Optional[str] = None
+
+
+@router.put("/user/profile")
+async def update_user_profile(
+    payload: ProfileUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = current_user["id"]
+    current_username = current_user["username"]
+    is_admin = current_user["role"] == "admin"
+
+    update_fields = []
+    params = []
+
+    # 1. Validasi & Update Username
+    if payload.username and payload.username.strip() != current_username:
+        new_username = payload.username.strip()
+
+        # Cek apakah username baru sudah digunakan oleh akun lain
+        conn = sqlite3.connect("watchers.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM users WHERE username = ? AND id != ?",
+            (new_username, user_id),
+        )
+        existing_user = cursor.fetchone()
+        conn.close()
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username tersebut sudah digunakan oleh akun lain.",
+            )
+
+        update_fields.append("username = ?")
+        params.append(new_username)
+
+    # 2. Validasi & Update Password (Hanya jika diisi)
+    if payload.password and payload.password.strip():
+        hashed_password = hash_password(payload.password)
+        update_fields.append("password_hash = ?")
+        params.append(hashed_password)
+
+    # 3. KONTROL HAK AKSES: Hanya ADMIN yang bisa memperbarui 'role' dan 'room'
+    if is_admin:
+        if payload.role and payload.role.strip():
+            update_fields.append("role = ?")
+            params.append(payload.role.strip())
+
+        if payload.room and payload.room.strip():
+            update_fields.append("room = ?")
+            params.append(payload.room.strip())
+
+    # Jika tidak ada field yang diubah
+    if not update_fields:
+        return {
+            "status": "success",
+            "message": "Tidak ada perubahan data profil.",
+        }
+
+    # 4. Eksekusi Query Update ke Database
+    params.append(user_id)
+    query = f"UPDATE users SET {', '.join(update_fields)} WHERE id = ?"
+
+    try:
+        conn = sqlite3.connect("watchers.db")
+        cursor = conn.cursor()
+        cursor.execute(query, tuple(params))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gagal memperbarui data profil: {str(e)}",
+        )
+
+    return {
+        "status": "success",
+        "message": "Profil berhasil diperbarui.",
+        "updated_by_admin": is_admin,
+    }
+
 @router.post("/rooms", status_code=status.HTTP_201_CREATED)
 async def create_room(room_data: RoomCreateSchema):
     room_name = room_data.name.strip().lower()
@@ -109,149 +338,9 @@ async def create_room(room_data: RoomCreateSchema):
     }
 
 
-# --- ENDPOINT 2: REGISTER USER BARU ---
-@router.post("/users", status_code=status.HTTP_201_CREATED)
-async def create_user(user_data: UserCreateSchema):
-    role = user_data.role.strip().lower()
-    room = user_data.room.strip().lower() if user_data.room else "teachers"
-
-    # Validasi role yang diizinkan
-    valid_roles = ["dosen", "direktur", "developer"]
-    if role not in valid_roles:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Role tidak valid. Pilihan role yang tersedia: {', '.join(valid_roles)}",
-        )
-
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA foreign_keys = ON;")
-
-    # 1. Cek apakah username sudah dipakai
-    cursor.execute(
-        "SELECT id FROM users WHERE username = ?", (user_data.username,)
-    )
-    if cursor.fetchone():
-        conn.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Username '{user_data.username}' sudah digunakan.",
-        )
-
-    # 2. Cek apakah room target ada di tabel rooms
-    cursor.execute("SELECT id FROM rooms WHERE name = ?", (room,))
-    if not cursor.fetchone():
-        conn.close()
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Room '{room}' tidak ditemukan. Buat room terlebih dahulu.",
-        )
-
-    # 3. Hash password dan simpan user baru
-    hashed_pwd = hash_password(user_data.password)
-    cursor.execute(
-        "INSERT INTO users (username, password_hash, role, room) VALUES (?, ?, ?, ?)",
-        (user_data.username, hashed_pwd, role, room),
-    )
-    conn.commit()
-    new_user_id = cursor.lastrowid
-    conn.close()
-
-    return {
-        "status": "success",
-        "message": f"User '{user_data.username}' berhasil dibuat.",
-        "data": {
-            "id": new_user_id,
-            "username": user_data.username,
-            "role": role,
-            "room": room,
-        },
-    }
-
-# --- ENDPOINT 3: DELETE ROOM ---
-@router.delete("/rooms/{room_id}", status_code=status.HTTP_200_OK)
-async def delete_room(room_id: int):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA foreign_keys = ON;")
-
-    # Cek keberadaan room
-    cursor.execute("SELECT name FROM rooms WHERE id = ?", (room_id,))
-    room = cursor.fetchone()
-    if not room:
-        conn.close()
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Room tidak ditemukan.",
-        )
-
-    room_name = room[0]
-
-    # Mencegah penghapusan room default 'teachers'
-    if room_name == "teachers":
-        conn.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Room default 'teachers' tidak dapat dihapus.",
-        )
-
-    # Cek apakah masih ada user yang terikat ke room ini
-    cursor.execute(
-        "SELECT COUNT(*) FROM users WHERE room = ?", (room_name,)
-    )
-    user_count = cursor.fetchone()[0]
-    if user_count > 0:
-        conn.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Tidak bisa menghapus room '{room_name}' karena masih digunakan oleh {user_count} user.",
-        )
-
-    cursor.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
-    conn.commit()
-    conn.close()
-
-    return {
-        "status": "success",
-        "message": f"Room '{room_name}' berhasil dihapus.",
-    }
-
-# --- ENDPOINT 4: DELETE USER ---
-@router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
-async def delete_user(user_id: int):
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    # Cek keberadaan user
-    cursor.execute("SELECT username FROM users WHERE id = ?", (user_id,))
-    user = cursor.fetchone()
-    if not user:
-        conn.close()
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User tidak ditemukan.",
-        )
-
-    username = user[0]
-
-    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
-    conn.commit()
-    conn.close()
-
-    return {
-        "status": "success",
-        "message": f"User '{username}' berhasil dihapus.",
-    }
-
 # --- PYDANTIC UPDATE SCHEMAS ---
 class RoomUpdateSchema(BaseModel):
     name: str = Field(..., min_length=2, example="lab_komputer_2")
-class UserUpdateSchema(BaseModel):
-    username: Optional[str] = None
-    password: Optional[str] = None  # Kosongkan jika tidak ingin mengubah password
-    role: Optional[str] = None  # dosen, direktur, developer
-    room: Optional[str] = None
-
 # --- ENDPOINT 5: EDIT ROOM ---
 @router.put("/rooms/{room_id}", status_code=status.HTTP_200_OK)
 async def update_room(room_id: int, room_data: RoomUpdateSchema):
@@ -304,6 +393,124 @@ async def update_room(room_id: int, room_data: RoomUpdateSchema):
         "message": f"Nama room berhasil diubah dari '{old_name}' menjadi '{new_name}'.",
     }
 
+# --- ENDPOINT 3: DELETE ROOM ---
+@router.delete("/rooms/{room_id}", status_code=status.HTTP_200_OK)
+async def delete_room(room_id: int):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
+    # Cek keberadaan room
+    cursor.execute("SELECT name FROM rooms WHERE id = ?", (room_id,))
+    room = cursor.fetchone()
+    if not room:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Room tidak ditemukan.",
+        )
+
+    room_name = room[0]
+
+    # Mencegah penghapusan room default 'teachers'
+    if room_name == "teachers":
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Room default 'teachers' tidak dapat dihapus.",
+        )
+
+    # Cek apakah masih ada user yang terikat ke room ini
+    cursor.execute(
+        "SELECT COUNT(*) FROM users WHERE room = ?", (room_name,)
+    )
+    user_count = cursor.fetchone()[0]
+    if user_count > 0:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tidak bisa menghapus room '{room_name}' karena masih digunakan oleh {user_count} user.",
+        )
+
+    cursor.execute("DELETE FROM rooms WHERE id = ?", (room_id,))
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "message": f"Room '{room_name}' berhasil dihapus.",
+    }
+
+# --- ENDPOINT 2: REGISTER USER BARU ---
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+async def create_user(user_data: UserCreateSchema):
+    role_name = user_data.role.strip().lower()
+    room_name = user_data.room.strip().lower() if user_data.room else "teachers"
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
+    # 1. Cek apakah username sudah dipakai
+    cursor.execute(
+        "SELECT id FROM users WHERE username = ?", (user_data.username,)
+    )
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Username '{user_data.username}' sudah digunakan.",
+        )
+
+    # 2. Cek keberadaan Role & ambil role_id
+    cursor.execute("SELECT id FROM roles WHERE LOWER(name) = ?", (role_name,))
+    role_row = cursor.fetchone()
+    if not role_row:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Role '{role_name}' tidak ditemukan.",
+        )
+    role_id = role_row[0]
+
+    # 3. Cek keberadaan Room & ambil room_id
+    cursor.execute("SELECT id FROM rooms WHERE LOWER(name) = ?", (room_name,))
+    room_row = cursor.fetchone()
+    if not room_row:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Room '{room_name}' tidak ditemukan. Buat room terlebih dahulu.",
+        )
+    room_id = room_row[0]
+
+    # 4. Hash password dan simpan user baru menggunakan role_id & room_id
+    hashed_pwd = hash_password(user_data.password)
+    cursor.execute(
+        "INSERT INTO users (username, password_hash, role_id, room_id) VALUES (?, ?, ?, ?)",
+        (user_data.username, hashed_pwd, role_id, room_id),
+    )
+    conn.commit()
+    new_user_id = cursor.lastrowid
+    conn.close()
+
+    return {
+        "status": "success",
+        "message": f"User '{user_data.username}' berhasil dibuat.",
+        "data": {
+            "id": new_user_id,
+            "username": user_data.username,
+            "role": role_name,
+            "room": room_name,
+        },
+    }
+
+class UserUpdateSchema(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    room: Optional[str] = None
+
 
 # --- ENDPOINT 6: EDIT USER ---
 @router.put("/users/{user_id}", status_code=status.HTTP_200_OK)
@@ -313,9 +520,8 @@ async def update_user(user_id: int, user_data: UserUpdateSchema):
     cursor.execute("PRAGMA foreign_keys = ON;")
 
     # Cek apakah user ada
-    cursor.execute("SELECT username, room FROM users WHERE id = ?", (user_id,))
-    existing_user = cursor.fetchone()
-    if not existing_user:
+    cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+    if not cursor.fetchone():
         conn.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -346,30 +552,33 @@ async def update_user(user_id: int, user_data: UserUpdateSchema):
         updates.append("password_hash = ?")
         params.append(hash_password(user_data.password.strip()))
 
-    # Update Role
+    # Update Role (Cek keberadaan role & ambil role_id)
     if user_data.role:
-        role = user_data.role.strip().lower()
-        if role not in ["dosen", "direktur", "developer"]:
-            conn.close()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Role tidak valid.",
-            )
-        updates.append("role = ?")
-        params.append(role)
-
-    # Update Room
-    if user_data.room:
-        room = user_data.room.strip().lower()
-        cursor.execute("SELECT id FROM rooms WHERE name = ?", (room,))
-        if not cursor.fetchone():
+        role_name = user_data.role.strip().lower()
+        cursor.execute("SELECT id FROM roles WHERE LOWER(name) = ?", (role_name,))
+        role_row = cursor.fetchone()
+        if not role_row:
             conn.close()
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Room '{room}' tidak ditemukan.",
+                detail=f"Role '{role_name}' tidak ditemukan.",
             )
-        updates.append("room = ?")
-        params.append(room)
+        updates.append("role_id = ?")
+        params.append(role_row[0])
+
+    # Update Room (Cek keberadaan room & ambil room_id)
+    if user_data.room:
+        room_name = user_data.room.strip().lower()
+        cursor.execute("SELECT id FROM rooms WHERE LOWER(name) = ?", (room_name,))
+        room_row = cursor.fetchone()
+        if not room_row:
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Room '{room_name}' tidak ditemukan.",
+            )
+        updates.append("room_id = ?")
+        params.append(room_row[0])
 
     if not updates:
         conn.close()
@@ -385,6 +594,147 @@ async def update_user(user_id: int, user_data: UserUpdateSchema):
     conn.close()
 
     return {"status": "success", "message": "Data user berhasil diperbarui."}
+
+# --- ENDPOINT 4: DELETE USER ---
+@router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
+async def delete_user(user_id: int):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Cek keberadaan user
+    cursor.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User tidak ditemukan.",
+        )
+
+    username = user[0]
+
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "message": f"User '{username}' berhasil dihapus.",
+    }
+
+class RoleCreateSchema(BaseModel):
+    name: str
+
+
+# --- ENDPOINT 1: CREATE ROLE ---
+@router.post("/roles", status_code=status.HTTP_201_CREATED)
+async def create_role(
+    role_data: RoleCreateSchema,
+    current_user: dict = Depends(get_current_user),
+):
+    # Proteksi Hak Akses
+    if current_user.get("role") not in ["admin", "direktur", "developer"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses ditolak. Hanya administrator yang dapat membuat role.",
+        )
+
+    role_name = role_data.name.strip().lower()
+
+    if not role_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nama role tidak boleh kosong.",
+        )
+
+    # Dilarang membuat role dengan nama 'admin' secara manual
+    if role_name == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role 'admin' adalah role sistem dan tidak dapat dibuat ulang.",
+        )
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Cek duplikasi nama role
+    cursor.execute("SELECT id FROM roles WHERE LOWER(name) = ?", (role_name,))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role '{role_name}' sudah terdaftar.",
+        )
+
+    # Insert role baru
+    cursor.execute("INSERT INTO roles (name) VALUES (?)", (role_name,))
+    conn.commit()
+    new_role_id = cursor.lastrowid
+    conn.close()
+
+    return {
+        "status": "success",
+        "message": f"Role '{role_name}' berhasil dibuat.",
+        "data": {"id": new_role_id, "name": role_name},
+    }
+
+
+# --- ENDPOINT 2: DELETE ROLE ---
+@router.delete("/roles/{role_name}", status_code=status.HTTP_200_OK)
+async def delete_role(
+    role_name: str, current_user: dict = Depends(get_current_user)
+):
+    # Proteksi Hak Akses
+    if current_user.get("role") != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Akses ditolak. Hanya administrator yang dapat menghapus role.",
+        )
+
+    target_role = role_name.strip().lower()
+
+    # Proteksi Khusus: Role bawaan sistem tidak boleh dihapus
+    if target_role == 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role bawaan '{target_role}' tidak dapat dihapus.",
+        )
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
+
+    # Cek keberadaan role
+    cursor.execute("SELECT id FROM roles WHERE LOWER(name) = ?", (target_role,))
+    role_row = cursor.fetchone()
+    if not role_row:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Role '{target_role}' tidak ditemukan.",
+        )
+
+    role_id = role_row[0]
+
+    # Cek apakah masih ada user yang terikat dengan role_id ini
+    cursor.execute("SELECT COUNT(*) FROM users WHERE role_id = ?", (role_id,))
+    user_count = cursor.fetchone()[0]
+    if user_count > 0:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role '{target_role}' masih digunakan oleh {user_count} pengguna.",
+        )
+
+    # Hapus role
+    cursor.execute("DELETE FROM roles WHERE id = ?", (role_id,))
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "success",
+        "message": f"Role '{target_role}' berhasil dihapus.",
+    }
 
 # --- ROUTE ENDPOINT API ---
 @router.put("/stream-settings")

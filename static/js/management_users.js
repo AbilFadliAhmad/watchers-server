@@ -14,14 +14,15 @@ async function submitCreateUser(event) {
     event.preventDefault();
     const username = document.getElementById('staff-username').value.trim();
     const password = document.getElementById('staff-password').value;
-    const role = document.getElementById('staff-role').value;
-    const room = document.getElementById('staff-room').value;
+    const role = document.getElementById('staff-role-id').value;
+    const room = document.getElementById('staff-room-id').value;
 
     try {
+        const payload = {username, password, role, room}
         const response = await fetch('/api/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role, room })
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();
