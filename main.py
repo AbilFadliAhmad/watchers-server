@@ -375,7 +375,6 @@ async def get_logs_page(
     """Menyajikan halaman HTML khusus Log & Teguran."""
     try:
         user = await get_current_user(request, response)
-        # Panggil helper function untuk mengambil data log
         log_data = await get_logs_data(current_user=user, action=action)
         return templates.TemplateResponse(
             request=request,

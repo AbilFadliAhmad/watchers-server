@@ -1,5 +1,6 @@
 import sqlite3
 from typing import Optional
+import uuid
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from auth import hash_password
@@ -127,10 +128,11 @@ async def get_logs_data(current_user: dict, action: Optional[str] = None, limit:
             COALESCE(c.name, l.client_id) AS hostname,
             l.action_type,
             l.details,
-            l.executed_by,
+            u.username AS executed_by_username,
             l.created_at
         FROM activity_logs l
         LEFT JOIN clients c ON l.client_id = c.id
+        LEFT JOIN users u ON l.executed_by = u.id
         {sql_where}
         ORDER BY l.id DESC
         LIMIT ?
@@ -487,9 +489,10 @@ async def create_user(user_data: UserCreateSchema):
     # 4. Hash password dan simpan user baru menggunakan role_id & room_id
     hashed_pwd = hash_password(user_data.password)
     cursor.execute(
-        "INSERT INTO users (username, password_hash, role_id, room_id) VALUES (?, ?, ?, ?)",
-        (user_data.username, hashed_pwd, role_id, room_id),
+        "INSERT INTO users (id, username, password_hash, role_id, room_id) VALUES (?, ?, ?, ?, ?)",
+        (str(uuid.uuid4()), user_data.username, hashed_pwd, role_id, room_id),
     )
+
     conn.commit()
     new_user_id = cursor.lastrowid
     conn.close()

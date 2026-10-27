@@ -1,5 +1,6 @@
 # --- DATABASE SETUP (SQLite) ---
 import sqlite3
+import uuid
 from auth import hash_password
 
 def init_db():
@@ -26,10 +27,10 @@ def init_db():
     """)
     cursor.execute("INSERT OR IGNORE INTO roles (id, name) VALUES (1, 'admin')")
 
-    # 3. Tabel users dengan Foreign Key role_id dan room_id
+    # 1. TABEL: users (Menggunakan UUIDv7 sebagai Primary Key)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             role_id INTEGER NOT NULL DEFAULT 1,
@@ -92,10 +93,10 @@ def init_db():
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
         default_users = [
-            ("direktur", hash_password("123"), 1, 1),
+            (str(uuid.uuid4()), "direktur", hash_password("123"), 1, 1),
         ]
         cursor.executemany(
-            "INSERT INTO users (username, password_hash, role_id, room_id) VALUES (?, ?, ?, ?)",
+            "INSERT INTO users (id, username, password_hash, role_id, room_id) VALUES (?, ?, ?, ?, ?)",
             default_users,
         )
 
@@ -126,6 +127,7 @@ def init_db():
         """)
     # Membuat Index pada client_id
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_client_id ON activity_logs(client_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_executed_by ON activity_logs(executed_by)")
 
     conn.commit()
     conn.close()

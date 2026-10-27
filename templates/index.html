@@ -952,7 +952,7 @@
         });
 
         function sendDirectCommand(sid, action, extraData = {}) {
-            socket.emit("send_command", { executed_by:user.username, target_sid: sid, command: {action: action, ...extraData} });
+            socket.emit("send_command", { executed_by:user.id, target_sid: sid, command: {action: action, ...extraData} });
         }
 
         function toggleDropdownMoreAction(event, sid) {
