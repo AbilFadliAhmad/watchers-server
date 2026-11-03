@@ -26,10 +26,9 @@ async def get_current_user(request: Request, response: Response) -> dict:
     """Dependency untuk mengambil detail data pengguna dari SQLite & auto-refresh token jika expired."""
     access_token = request.cookies.get("access_token")
     refresh_token = request.cookies.get("refresh_token")
-    print("berhasil ganti nama tidak? \n",  access_token, "\n", refresh_token)
 
     payload, error = (
-        verify_token(access_token, SECRET_KEY)
+        verify_token(access_token, str(SECRET_KEY))
         if access_token
         else (None, "missing")
     )
