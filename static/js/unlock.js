@@ -5,13 +5,10 @@ function unlockScreen(targetSid) {
     }
 
     try {
-        const payload = {
-            target_sid: targetSid,
-            command: { action: 'unlock' }
-        };
-
-        const socketConn = (typeof sio !== 'undefined' && sio.connected) ? sio : (typeof socket !== 'undefined' && socket.connected ? socket : null);
-        if (socketConn) socketConn.emit("send_command", payload);
+        sendDirectCommand(targetSid, 'unlock', {
+            log_details: "Perintah buka kunci layar dikirim melalui panel manajemen.",
+            is_warning: false
+        });
 
         // Update Overlay UI Secara Aman
         if (targetSid === 'all') {

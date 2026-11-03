@@ -19,10 +19,32 @@ document.addEventListener("DOMContentLoaded", () => {
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-                <div class="space-y-3">
-                    <label class="text-xs text-gray-400">Pesan Pengingat / Instruksi:</label>
-                    <textarea id="msg-input" rows="3" class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-indigo-500 transition resize-none" placeholder="Ketik pesan di sini..."></textarea>
+                
+                <div class="space-y-4">
+                    <!-- Section Pilihan Mode Pesan -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs text-gray-400 font-medium">Tipe Pesan:</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-gray-950 border border-gray-800 cursor-pointer hover:border-emerald-500/50 transition text-xs font-medium text-gray-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-950/30 has-[:checked]:text-emerald-400">
+                                <input type="radio" name="msg-type" value="normal" checked class="hidden">
+                                <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                                <span>Pengumuman Biasa</span>
+                            </label>
+                            <label class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-gray-950 border border-gray-800 cursor-pointer hover:border-amber-500/50 transition text-xs font-medium text-gray-300 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-950/30 has-[:checked]:text-amber-400">
+                                <input type="radio" name="msg-type" value="warning" class="hidden">
+                                <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                                <span>Pesan Peringatan</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Input Pesan -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs text-gray-400 font-medium">Pesan Pengingat / Instruksi:</label>
+                        <textarea id="msg-input" rows="3" class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-indigo-500 transition resize-none" placeholder="Ketik pesan di sini..."></textarea>
+                    </div>
                 </div>
+
                 <div class="mt-5 pt-3 border-t border-gray-800 flex justify-end gap-2">
                     <button onclick="closeMessageModal()" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold px-4 py-2 rounded-lg transition">Batal</button>
                     <button onclick="submitSendMessage()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center gap-1.5">
@@ -71,9 +93,16 @@ function closeMessageModal() {
 
 function submitSendMessage() {
     const text = document.getElementById('msg-input').value.trim();
-    targetSid = activeSid || 'all';
+    const selectedType = document.querySelector('input[name="msg-type"]:checked')?.value;
+    const isWarning = selectedType === 'warning';
+    
+    const targetSid = activeSid || 'all';
+
     if (text) {
-        sendDirectCommand(activeSid, 'message', { text: text });
+        sendDirectCommand(targetSid, 'message', { 
+            log_details: text,
+            is_warning: isWarning ? true : false
+        });
         closeMessageModal();
     }
 }

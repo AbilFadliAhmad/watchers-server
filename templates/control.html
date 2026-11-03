@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchers Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Toastify CSS & JS CDN -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="{{ static_v('js/skeleton_dashboard.js') }}" defer></script>
+    <script src="{{ static_v('js/send_message.js') }}" defer></script>
+    <script src="{{ static_v('js/rename_client.js') }}" defer></script>
+    <script src="{{ static_v('js/shutdown.js') }}" defer></script>
+    <script src="{{ static_v('js/stream_config.js') }}" defer></script>
+    <script src="{{ static_v('js/lock.js') }}" defer></script>
+    <script src="{{ static_v('js/unlock.js') }}" defer></script>
+    <script src="{{ static_v('js/automation_keyboard.js') }}" defer></script>
+    <script src="{{ static_v('js/detail_open_applications.js') }}" defer></script>
+    <script src="{{ static_v('js/fullscreen.js') }}" defer></script>
+    <script src="{{ static_v('js/logout.js') }}" defer></script>
+    <script src="{{ static_v('js/toaster.js') }}" defer></script>
+    <script src="{{ static_v('js/visit_url.js') }}" defer></script>
+    <script src="{{ static_v('js/update_agent_client.js') }}" defer></script>
+    <script src="{{ static_v('js/management_rooms.js') }}" defer></script>
+    <script src="{{ static_v('js/management_users.js') }}" defer></script>
+    <script src="{{ static_v('js/management_roles.js') }}" defer></script>
+    <script src="{{ static_v('js/multi_sellects.js') }}" defer></script>
+    <script src="{{ static_v('js/edit_profile.js') }}" defer></script>
+</head>
+<!-- Container Fullscreen Viewer -->
+<div id="fullscreen-viewer" class="fixed inset-0 bg-black z-50 hidden flex-col items-center justify-center">
+
+    <!-- Floating Toolbar / Tombol Pembantu (Atas) -->
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-900/90 border border-gray-800 rounded-2xl px-4 py-2 flex items-center gap-3 z-50 backdrop-blur-md shadow-2xl">
+        <span id="fullscreen-hostname" class="text-xs font-bold text-indigo-300 flex items-center gap-1.5 mr-1 border-r border-gray-700 pr-3">
+            <i data-lucide="monitor" class="w-4 h-4 text-indigo-400"></i>
+            <span id="fullscreen-hostname-text">PC-NAME</span>
+        </span>
+
+        <!-- Tombol Screenshot -->
+        <button onclick="takeFullscreenScreenshot()" class="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-600/50 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="camera" class="w-4 h-4"></i> Screenshot
+        </button>
+
+        <!-- Tombol Keluar Fullscreen -->
+        <button onclick="exitCustomFullscreen()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-600/50 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="minimize-2" class="w-4 h-4"></i> Keluar
+        </button>
+    </div>
+
+    <!-- Live Stream Gambar Layar Fullscreen -->
+    <img id="fullscreen-img" class="w-full h-full object-contain bg-black" src="" alt="Fullscreen Stream">
+</div>
+<body class="bg-gray-950 text-white min-h-screen p-6 font-sans">
+    <!-- Header Control Bar -->
+    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-800 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-indigo-400 flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-7 h-7 text-indigo-500"></i>
+                Watchers Control Center
+            </h1>
+            <p class="text-xs text-gray-400 mt-0.5">Monitoring & Kendali Real-time Lab Komputer</p>
+        </div>
+
+        <!-- Profil & Dropdown Pengguna -->
+        <div class="relative self-end sm:self-auto">
+            <button onclick="toggleProfileDropdown(event)" class="flex items-center gap-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 px-3 py-2 rounded-xl transition shadow-md">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center font-bold text-xs uppercase">
+                    {{ user.username[0] }}
+                </div>
+                <div class="text-left hidden sm:block">
+                    <p class="text-xs font-semibold text-gray-200 capitalize leading-tight">{{ user.username }}</p>
+                    <p class="text-[10px] text-indigo-400 font-mono uppercase">{{ user.role }}</p>
+                </div>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i>
+            </button>
+
+            <!-- Dropdown Menu Detail Profil -->
+            <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 py-2 divide-y divide-gray-800/80 backdrop-blur-md">
+                <!-- Informasi Akun -->
+                <div class="px-4 py-2.5">
+                    <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Akun Aktif</p>
+                    <p class="text-xs font-bold text-white truncate capitalize">{{ user.username }}</p>
+                    <span class="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 border border-indigo-800/60 uppercase">
+                        {{ user.role }}
+                    </span>
+                </div>
+
+                <!-- Menu Umum (Edit Profil) -->
+                <div class="py-1">
+                    <button onclick="openEditProfileModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                        <i data-lucide="user-cog" class="w-4 h-4 text-sky-400"></i>
+                        <span>Edit Profil</span>
+                    </button>
+                    <a href="/logs" class="w-full block text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                        <i data-lucide="scroll-text" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Logs Aktivitas</span>
+                    </a>
+                </div>
+
+                <!-- Menu Khusus Direktur & Developer -->
+                {% if user.role == 'admin' %}
+                <div class="py-1">
+                    <button onclick="openRoleModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                        <i data-lucide="shield" class="w-4 h-4 text-purple-400"></i>
+                        <span>Management Role</span>
+                    </button>
+
+                    <button onclick="openGroupModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                        <i data-lucide="folder-tree" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Management Room</span>
+                    </button>
+                    <button onclick="openStaffModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                        <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
+                        <span>Management Staff</span>
+                    </button>
+
+                    <!-- FITUR BARU: Konfigurasi Stream (Tepat diatas Logout) -->
+                    <button onclick="openStreamConfigModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                        <i data-lucide="sliders" class="w-4 h-4 text-amber-400"></i>
+                        <span>Konfigurasi Stream</span>
+                    </button>
+                </div>
+                {% endif %}
+
+                <!-- Logout -->
+                <div class="py-1">
+                    <button onclick="handleLogout()" class="w-full text-left px-4 py-2 text-xs text-rose-400 hover:bg-rose-600 hover:text-white flex items-center gap-2.5 transition">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Panel Tombol Kendali Utama (Flexbox Flexible Layout) -->
+    <section class="flex flex-wrap gap-3 mb-6">
+
+        <!-- 0. Update Client (Khusus Role Developer) -->
+        {% if user.role == 'admin' %}
+        <button onclick="openOtaModal()" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-indigo-950/40 border border-gray-800 hover:border-indigo-600/50 rounded-2xl group transition shadow-lg">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-gray-300 group-hover:text-indigo-300">Update</span>
+        </button>
+        {% endif %}
+
+        <!-- 1. Pesan -->
+        <button onclick="openMessageModal('all', 'Semua PC')" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-emerald-950/40 border border-gray-800 hover:border-emerald-600/50 rounded-2xl group transition shadow-lg">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                <i data-lucide="message-square" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-gray-300 group-hover:text-emerald-300">Pesan</span>
+        </button>
+
+        <!-- 2. Kunci Semua -->
+        <button onclick="openLockModal('all');" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-yellow-950/40 border border-gray-800 hover:border-yellow-600/50 rounded-2xl group transition shadow-lg">
+            <div class="w-10 h-10 rounded-xl bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                <i data-lucide="lock" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-gray-300 group-hover:text-yellow-300">Kunci</span>
+        </button>
+
+        <!-- 3. Buka Semua -->
+        <button onclick="unlockScreen('all');" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-emerald-950/40 border border-gray-800 hover:border-emerald-600/50 rounded-2xl group transition shadow-lg">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                <i data-lucide="unlock" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-gray-300 group-hover:text-emerald-300">Buka</span>
+        </button>
+
+        <!-- 4. Kunjungi URL (Baru) -->
+        <button onclick="openUrlModal('all', 'Semua PC')" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-sky-950/40 border border-gray-800 hover:border-sky-600/50 rounded-2xl group transition shadow-lg">
+            <div class="w-10 h-10 rounded-xl bg-sky-600/20 border border-sky-500/30 text-sky-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                <i data-lucide="globe" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-gray-300 group-hover:text-sky-300">Kunjungi</span>
+        </button>
+
+        <!-- 5. Ketik Otomatis (Baru) Khusus Developer -->
+        {% if user.role == 'developer' %}
+        <button onclick="openMacroModal('all', 'Semua PC')" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-purple-950/40 border border-gray-800 hover:border-purple-600/50 rounded-2xl group transition shadow-lg">
+            <div class="w-10 h-10 rounded-xl bg-purple-600/20 text-gray-200 hover:text-white flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                <i data-lucide="keyboard" class="w-5 h-5 text-purple-400"></i>
+            </div>
+            <span class="text-xs font-semibold text-gray-300 group-hover:text-purple-300">Ketik Otomatis</span>
+        </button>
+        {% endif %}
+
+
+        <!-- 5. Matikan Semua -->
+        <button onclick="confirmShutdown('all', 'Semua PC')" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-rose-950/40 border border-gray-800 hover:border-rose-600/50 rounded-2xl group transition shadow-lg">
+            <div class="w-10 h-10 rounded-xl bg-rose-600/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                <i data-lucide="power" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-gray-300 group-hover:text-rose-300">Matikan</span>
+        </button>
+
+    </section>
+
+    <!-- Minimalist Clean Header Control Toolbar -->
+    <div class="bg-gray-900/80 border border-gray-800/90 rounded-2xl p-3 sm:p-4 backdrop-blur-xl shadow-xl mb-6 lg:hidden">
+        <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">  
+            <!-- Sisi Kiri: Room Switcher & Live Online Count (Responsif HP & Tablet) -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto">
+                
+                <!-- Room Dropdown Switcher -->
+                <div class="relative w-full sm:w-auto sm:min-w-[230px] group">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-indigo-400 group-hover:text-indigo-300 transition-colors">
+                        <i data-lucide="door-open" class="w-4 h-4"></i>
+                    </div>
+                    <select id="room-select" onchange="switchRoom(this.value)" 
+                        class="w-full bg-gray-950/90 border border-gray-800 hover:border-gray-700/80 focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 rounded-xl pl-9 pr-9 py-2.5 text-xs font-bold text-gray-100 focus:outline-none transition-all appearance-none cursor-pointer shadow-inner tracking-wide">
+                        {% if rooms %}
+                            {% for room in rooms %}
+                                <option value="{{ room.name }}" {% if current_room and current_room.id == room.id %}selected{% endif %}>
+                                    {{ room.name }}
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="1" selected id="current-room-name">LAB-01 (Komputer Utama)</option>
+                            <option value="2">LAB-02 (Multimedia)</option>
+                        {% endif %}
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                    </div>
+                </div>
+
+                <!-- Badge Tunggal Status PC Online (Auto-stretch di HP) -->
+                <div class="flex items-center sm:justify-start gap-3 px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-inner w-full sm:w-auto shrink-0" title="Jumlah PC Aktif">
+                    <div class="flex items-center gap-2">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-1.5 font-mono">
+                        <span id="stat-online-pc" class="text-xs font-black text-emerald-400">0</span>
+                        <span class="text-[10px] text-emerald-500/90 uppercase font-bold tracking-wider">Online</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sisi Kanan: Pencarian Hostname & Action Button -->
+            <div class="flex items-center gap-2.5 w-full lg:max-w-md">
+                <!-- Search Bar Input -->
+                <div class="relative flex-1 group">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 group-focus-within:text-indigo-400 transition-colors">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <input type="text" id="search-hostname-input" oninput="filterPcsByHostname(this.value)" 
+                        placeholder="Cari hostname PC..." 
+                        class="w-full bg-gray-950/90 border border-gray-800 focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/40 rounded-xl pl-9 pr-3 py-2.5 text-xs text-gray-100 placeholder-gray-500 focus:outline-none transition shadow-inner">
+                </div>
+
+                <!-- Tombol Toggle Multiselect -->
+                <button id="toggle-multiselect-btn" onclick="toggleMultiSelectMode()" 
+                    class="flex items-center justify-center gap-2 px-3.5 py-2.5 bg-gray-800 hover:bg-indigo-600 border border-gray-700/80 hover:border-indigo-500 text-gray-200 hover:text-white rounded-xl text-xs font-semibold transition shadow-md shrink-0 group">
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-indigo-400 group-hover:text-white transition-colors"></i>
+                    <span id="multiselect-btn-text" class="hidden sm:inline">Pilih Banyak PC</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Grid Kartu PC Siswa -->
+    <main id="student-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <!-- Live Status Panel & Kartu PC siswa akan dirender di sini via JavaScript -->
+    </main>
+
+    <!-- MODAL ATUR STAFF (USERS) -->
+    <div>
+        <div id="staff-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+            <div class="bg-gray-900 border border-gray-800 w-full max-w-xl rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+
+                <!-- Header Modal -->
+                <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-100">Manajemen Staff & Pengguna</h3>
+                            <p class="text-[11px] text-gray-400">Daftarkan akun Dosen, Direktur, atau Developer</p>
+                        </div>
+                    </div>
+                    <button onclick="closeStaffModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Form Tambah Staff -->
+                <form onsubmit="submitCreateUser(event)" class="mt-4 space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label for="staff-username" class="block text-xs font-semibold text-gray-300 mb-1">Username</label>
+                            <input type="text" id="staff-username" required placeholder="Contoh: dosen_lab"
+                                    class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label for="staff-password" class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
+                            <input type="password" id="staff-password" required placeholder="••••••••"
+                                    class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label for="staff-role-id" class="block text-xs font-semibold text-gray-300 mb-1">Role Jabatan</label>
+                            <select id="staff-role-id" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                                {% for role in roles %}
+                                {{ role }}
+                                <option value="{{ role.name }}">{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="staff-room-id" class="block text-xs font-semibold text-gray-300 mb-1">Room Assignment</label>
+                            <select id="staff-room-id" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                                {% for room in rooms %}
+                                <option value="{{ room.name }}">{{ room.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-1">
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i> Buat Akun Staff
+                        </button>
+                    </div>
+                </form>
+
+                <!-- List User Terdaftar -->
+                <div class="mt-4 pt-3 border-t border-gray-800 flex-1 overflow-hidden flex flex-col">
+                    <p class="text-xs font-semibold text-gray-400 mb-2">Daftar Akun Terdaftar ({{ users|length }})</p>
+                    <div class="overflow-y-auto space-y-2 pr-1 custom-scrollbar flex-1">
+                        {% for u in users %}
+                        <div class="flex items-center justify-between bg-gray-950 border border-gray-800 p-2.5 rounded-xl">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-indigo-950 border border-indigo-800/60 text-indigo-400 flex items-center justify-center font-bold text-xs uppercase">
+                                    {{ u.username[0] }}
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-200 capitalize leading-tight">{{ u.username }}</p>
+                                    <p class="text-[10px] text-gray-500">Room: <span class="text-emerald-400 font-mono">{{ u.room }}</span></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 border border-indigo-800/60 uppercase mr-1">
+                                    {{ u.role }}
+                                </span>
+                                <button onclick="openEditUserModal('{{ u.id }}', '{{ u.username }}', '{{ u.role }}', '{{ u.room }}')" class="p-1 text-gray-500 hover:text-indigo-400 hover:bg-indigo-950/40 rounded-lg transition" title="Edit User">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                {% if u.id != user.id %}
+                                <button onclick="deleteUser('{{ u.id }}', '{{ u.username }}')" class="p-1 text-gray-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition" title="Hapus User">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-gray-500 text-center py-4">Belum ada akun staff terdaftar</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Modal Edit User -->
+        <div id="edit-staff-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+            <div class="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
+                    <h3 class="text-sm font-bold text-gray-100">Edit Akun Staff</h3>
+                    <button onclick="closeEditUserModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <form onsubmit="submitEditUser(event)" class="space-y-3">
+                    <input type="hidden" id="edit-staff-id">
+                    <div>
+                        <label for="edit-staff-username" class="block text-xs font-semibold text-gray-300 mb-1">Username</label>
+                        <input type="text" id="edit-staff-username" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label for="edit-staff-password" class="block text-xs font-semibold text-gray-300 mb-1">Password Baru <span class="text-[10px] text-gray-500 font-normal">(Kosongkan jika tidak diubah)</span></label>
+                        <input type="password" id="edit-staff-password" placeholder="••••••••" class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="edit-staff-role" class="block text-xs font-semibold text-gray-300 mb-1">Role Jabatan</label>
+                            <select id="edit-staff-role" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                                {% for role in roles %}
+                                {{ role }}
+                                <option value="{{ role.name }}">{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="edit-staff-room" class="block text-xs font-semibold text-gray-300 mb-1">Room Assignment</label>
+                            <select id="edit-staff-room" required class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none transition">
+                                {% for room in rooms %}
+                                {{ room }}
+                                <option value="{{ room.name }}">{{ room.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3">
+                        <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ATUR ROOM (GROUP) -->
+    <div>
+        <!-- MODAL ATUR ROOM (GROUP) -->
+        <div id="room-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+            <div class="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+
+                <!-- Header Modal -->
+                <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                            <i data-lucide="folder-tree" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-100">Manajemen Room</h3>
+                            <p class="text-[11px] text-gray-400">Tambah dan lihat grup lab komputer</p>
+                        </div>
+                    </div>
+                    <button onclick="closeGroupModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Form Tambah Room -->
+                <form onsubmit="submitCreateRoom(event)" class="mt-4 space-y-3">
+                    <div>
+                        <label for="room-name-input" class="block text-xs font-semibold text-gray-300 mb-1">Nama Room Baru</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="room-name-input" required placeholder="Contoh: lab_komputer_1"
+                                class="flex-1 bg-gray-950 border border-gray-800 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
+                            <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition">
+                                <i data-lucide="plus" class="w-4 h-4"></i> Tambah
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- List Room Terdaftar -->
+                <div class="mt-4 pt-3 border-t border-gray-800 flex-1 overflow-hidden flex flex-col">
+                    <p class="text-xs font-semibold text-gray-400 mb-2">Daftar Room Terdaftar ({{ rooms|length }})</p>
+                    <div class="overflow-y-auto space-y-2 pr-1 custom-scrollbar flex-1">
+                        {% for room in rooms %}
+                        <div class="flex items-center justify-between bg-gray-950 border border-gray-800 p-2.5 rounded-xl">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="door-open" class="w-4 h-4 text-emerald-400"></i>
+                                <span class="text-xs font-medium text-gray-200">{{ room.name }}</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-[10px] font-mono text-gray-500 mr-1">ID: #{{ room.id }}</span>
+                                {% if room.name != 'all' %}
+                                <button onclick="openEditRoomModal('{{ room.id }}', '{{ room.name }}')" class="p-1 text-gray-500 hover:text-emerald-400 hover:bg-emerald-950/40 rounded-lg transition" title="Edit Room">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteRoom('{{ room.id }}', '{{ room.name }}')" class="p-1 text-gray-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition" title="Hapus Room">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-xs text-gray-500 text-center py-4">Belum ada room terdaftar</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+        <!-- Modal Edit Room -->
+        <div id="edit-room-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center p-4">
+            <div class="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
+                    <h3 class="text-sm font-bold text-gray-100">Edit Nama Room</h3>
+                    <button onclick="closeEditRoomModal()" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <form onsubmit="submitEditRoom(event)" class="space-y-4">
+                    <input type="hidden" id="edit-room-id">
+                    <div>
+                        <label for="edit-room-name" class="block text-xs font-semibold text-gray-300 mb-1">Nama Room</label>
+                        <input type="text" id="edit-room-name" required class="w-full bg-gray-950 border border-gray-800 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-gray-100 focus:outline-none transition">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button type="button" onclick="closeEditRoomModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIGURASI STREAM -->
+    <div id="stream-config-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+            
+            <!-- Header Modal (Fixed Top) -->
+            <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/90 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400">
+                        <i data-lucide="sliders" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Konfigurasi Performa Stream</h3>
+                        <p class="text-[11px] text-gray-400">Atur interval pengiriman, resolusi & FPS Agent secara terpusat</p>
+                    </div>
+                </div>
+                <button onclick="closeStreamConfigModal()" class="text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-gray-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Body Modal (Scrollable jika konten melebihi 85vh) -->
+            <div class="p-6 space-y-6 overflow-y-auto grow custom-scrollbar">
+                
+                <!-- Penjelasan Fitur -->
+                <div class="p-3.5 bg-indigo-950/40 border border-indigo-800/40 rounded-xl text-xs text-indigo-200/80 leading-relaxed">
+                    <strong class="text-indigo-300">Fungsi Fitur:</strong> Mengatur frekuensi pengiriman screenshot dan resolusi layar siswa secara terpusat. Perubahan akan disinkronkan langsung ke database & seluruh Agent aktif.
+                </div>
+
+                <!-- Peringatan Konsumsi Resource Server -->
+                <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3 text-amber-300 text-xs">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0 text-amber-400 mt-0.5"></i>
+                    <div>
+                        <span class="font-bold block mb-0.5">Peringatan Konsumsi Server:</span>
+                        Semakin pendek interval pengiriman, semakin tinggi nilai FPS, atau semakin besar resolusi gambar yang dipilih, beban CPU, RAM, dan Bandwidth server akan meningkat drastis. Sesuaikan konfigurasi dengan kapasitas server kamu.
+                    </div>
+                </div>
+
+                <!-- ================= OPSI 1: MODE GRID SETTING ================= -->
+                <div class="space-y-4 bg-gray-950/50 p-4 border border-gray-800/80 rounded-xl">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <label class="text-xs font-bold text-gray-200 flex items-center gap-2">
+                                <i data-lucide="grid" class="w-4 h-4 text-emerald-400"></i>
+                                Interval Mode Grid (Monitoring Massal)
+                            </label>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Durasi jeda antar kiriman screenshot saat tampilan grid banyak PC.</p>
+                        </div>
+                        <!-- Input Angka Manual (Tanpa Desimal) -->
+                        <div class="flex items-center gap-1.5 bg-gray-900 border border-gray-700 px-2 py-1 rounded-lg">
+                            <input type="number" id="grid-interval-num" min="1" max="60" step="1"
+                                value="{{ stream_config.grid.interval | int if stream_config and stream_config.grid else 5 }}"
+                                onchange="syncGridInput(this.value)"
+                                class="w-12 bg-transparent text-right text-xs font-bold text-emerald-400 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                            <span class="text-[10px] text-gray-400 font-medium">detik</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider Grid (Tegas Kiri vs Kanan) -->
+                    <div class="space-y-1.5">
+                        <input type="range" id="grid-interval-slider" min="1" max="60" step="1" 
+                            value="{{ stream_config.grid.interval | int if stream_config and stream_config.grid else 5 }}" 
+                            oninput="syncGridSlider(this.value)"
+                            class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+                        <div class="flex justify-between text-[10px] font-semibold">
+                            <span class="text-emerald-400 flex items-center gap-1">
+                                <i data-lucide="zap" class="w-3 h-3"></i> 1 Detik (Kiri: Super Cepat / Boros)
+                            </span>
+                            <span class="text-gray-400 flex items-center gap-1">
+                                60 Detik (Kanan: Hemat / Lambat) <i data-lucide="shield-check" class="w-3 h-3"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Dropdown & Custom Scale (Resolusi Thumbnail Grid) -->
+                    <div class="pt-2 border-t border-gray-800/60 space-y-2">
+                        <label class="text-[11px] font-semibold text-gray-300 block">Resolusi Gambar Thumbnail (Grid):</label>
+                        <select id="grid-scale-select" onchange="toggleCustomScale('grid')" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500">
+                            <option value="320x180">320 x 180 (Thumbnail Sangat Ringan)</option>
+                            <option value="480x270">480 x 270 (Thumbnail Ringan)</option>
+                            <option value="640x360" selected>640 x 360 (Standar Grid - Default)</option>
+                            <option value="854x480">854 x 480 (Grid Tajam / High-Res)</option>
+                            <option value="custom">-- Custom Resolusi Sendiri --</option>
+                        </select>
+
+                        <!-- Input Custom Scale Grid (Default Hidden) -->
+                        <div id="grid-scale-custom-container" class="hidden flex items-center gap-2 pt-1">
+                            <div class="flex-1 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                <span class="text-[10px] text-gray-400">Lebar:</span>
+                                <input type="number" id="grid-scale-w" value="640" min="100" max="3840" step="1" class="w-full bg-transparent text-xs text-white font-bold focus:outline-none">
+                                <span class="text-[10px] text-gray-500">px</span>
+                            </div>
+                            <span class="text-gray-500 text-xs font-bold">x</span>
+                            <div class="flex-1 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                <span class="text-[10px] text-gray-400">Tinggi:</span>
+                                <input type="number" id="grid-scale-h" value="360" min="100" max="2160" step="1" class="w-full bg-transparent text-xs text-white font-bold focus:outline-none">
+                                <span class="text-[10px] text-gray-500">px</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= OPSI 2: MODE FULLSCREEN SETTING ================= -->
+                <div class="space-y-4 bg-gray-950/50 p-4 border border-gray-800/80 rounded-xl">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <label class="text-xs font-bold text-gray-200 flex items-center gap-2">
+                                <i data-lucide="monitor" class="w-4 h-4 text-indigo-400"></i>
+                                Frame Rate Fullscreen / Focus (Pantau 1 PC)
+                            </label>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Jumlah frame tayangan per detik saat mengamati 1 PC secara penuh.</p>
+                        </div>
+                        <!-- Input Angka Manual (Tanpa Desimal) -->
+                        <div class="flex items-center gap-1.5 bg-gray-900 border border-gray-700 px-2 py-1 rounded-lg">
+                            <input type="number" id="fullscreen-fps-num" min="1" max="60" step="1"
+                                value="{{ (1 / stream_config.fullscreen.interval) | round | int if stream_config and stream_config.fullscreen else 15 }}"
+                                onchange="syncFullscreenInput(this.value)"
+                                class="w-12 bg-transparent text-right text-xs font-bold text-indigo-400 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                            <span class="text-[10px] text-gray-400 font-medium">FPS</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider Fullscreen (Tegas Kiri vs Kanan) -->
+                    <div class="space-y-1.5">
+                        <input type="range" id="fullscreen-fps-slider" min="1" max="10" step="1" 
+                            value="{{ (1 / stream_config.fullscreen.interval) | round | int if stream_config and stream_config.fullscreen else 15 }}"
+                            oninput="syncFullscreenSlider(this.value)"
+                            class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                        <div class="flex justify-between text-[10px] font-semibold">
+                            <span class="text-gray-400 flex items-center gap-1">
+                                <i data-lucide="shield-check" class="w-3 h-3"></i> 1 FPS (Kiri: Paling Hemat)
+                            </span>
+                            <span class="text-indigo-400 flex items-center gap-1">
+                                10 FPS (Kanan: Ultra Smooth / Boros) <i data-lucide="zap" class="w-3 h-3"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Dropdown & Custom Scale (Resolusi Fullscreen hingga 2K) -->
+                    <div class="pt-2 border-t border-gray-800/60 space-y-2">
+                        <label class="text-[11px] font-semibold text-gray-300 block">Resolusi Gambar Fullscreen (Mencapai 2K):</label>
+                        <select id="fullscreen-scale-select" onchange="toggleCustomScale('fullscreen')" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                            <option value="1280x720" selected>1280 x 720 (HD 720p - Default)</option>
+                            <option value="1600x900">1600 x 900 (HD+)</option>
+                            <option value="1920x1080">1920 x 1080 (Full HD 1080p)</option>
+                            <option value="2560x1440">2560 x 1440 (2K QHD Ultra High-Res)</option>
+                            <option value="custom">-- Custom Resolusi Sendiri --</option>
+                        </select>
+
+                        <!-- Input Custom Scale Fullscreen (Default Hidden) -->
+                        <div id="fullscreen-scale-custom-container" class="hidden flex items-center gap-2 pt-1">
+                            <div class="flex-1 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                <span class="text-[10px] text-gray-400">Lebar:</span>
+                                <input type="number" id="fullscreen-scale-w" value="1280" min="100" max="3840" step="1" class="w-full bg-transparent text-xs text-white font-bold focus:outline-none">
+                                <span class="text-[10px] text-gray-500">px</span>
+                            </div>
+                            <span class="text-gray-500 text-xs font-bold">x</span>
+                            <div class="flex-1 bg-gray-900 border border-gray-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                                <span class="text-[10px] text-gray-400">Tinggi:</span>
+                                <input type="number" id="fullscreen-scale-h" value="720" min="100" max="2160" step="1" class="w-full bg-transparent text-xs text-white font-bold focus:outline-none">
+                                <span class="text-[10px] text-gray-500">px</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer Modal (Fixed Bottom) -->
+            <div class="px-6 py-4 border-t border-gray-800 bg-gray-900/90 flex justify-end gap-3 shrink-0">
+                <button onclick="closeStreamConfigModal()" class="px-4 py-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition">
+                    Batal
+                </button>
+                <button onclick="submitStreamConfig()" class="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg transition flex items-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Simpan & Sinkronkan
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const socket = io();
+        const activeAppsData = {}; // Menyimpan detail daftar aplikasi per SID
+        const user = {{ user | tojson | safe }};
+        let roles = {{ roles | tojson | safe }};
+        const rooms = {{ rooms | tojson | safe }};
+        let agentLists = {{ installers |  safe }};
+        let activeSid = null;
+        let activeHostname = '';
+        let activeRoom = ''; // Variabel untuk menyimpan room yang dipilih
+        let activeSearchKeyword = ''; // Variabel untuk menyimpan keyword pencarian
+
+        const objectUrlCache = {};
+
+        socket.on("connect", () => {
+            socket.emit("register_teacher", {user:user});
+        });
+
+        // Map untuk menyimpan Blob URL lama agar bisa di-revoke (mencegah memory leak)
+        socket.on("student_connected", (hostname) => {
+            Toastify({
+                text: `✨ Santri (${hostname}) terhubung. Sinkronisasi layar berlangsung...`,
+                duration: 3000,
+                gravity: "top",     // 'top' atau 'bottom'
+                position: "right",     // 'left', 'center', atau 'right'
+                stopOnFocus: true,     // Mencegah toast hilang saat kursor di-hover
+                style: {
+                    background: "#0f172a",                 // Dark Slate (Background)
+                    color: "#e2e8f0",                      // Teks Putih/Abu Terang
+                    border: "1px solid #374151",            // Border Gray 700
+                    borderRadius: "0.75rem",               // Rounded XL
+                    fontSize: "0.8125rem",                 // Text XS/SM
+                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)"
+                }
+            }).showToast();
+        });
+        socket.on("student_disconnected", (data) => {
+            const sid = data?.device_id ?? null;
+            const hostname = data?.name ?? null;
+
+            if (sid) {
+                connectedPcs.delete(sid);
+
+                const card = document.getElementById(`pc-${sid}`);
+                if (card) {
+                    card.remove();
+                    showToast(`🔌 Santri (${hostname}) terputus dari jaringan.`, "failed");
+                }
+                delete activeAppsData[sid];
+
+                if (connectedPcs.size === 0) {
+                    // Hapus panel live status jika tidak ada PC lagi
+                    const panel = document.getElementById("live-status-panel");
+                    if (panel) panel.remove();
+                    showEmptyState();
+                } else {
+                    ensureLiveStatusPanel();
+                }
+            }
+
+            if (objectUrlCache[sid]) {
+                URL.revokeObjectURL(objectUrlCache[sid]);
+                delete objectUrlCache[sid];
+            }
+        });
+        socket.on("update_student_card", (data) => {
+            connectedPcs.add(data.sid);
+            clearPlaceholders();
+            
+            // 1. Pastikan Live Status Panel Terbuat & Ter-update
+            ensureLiveStatusPanel();
+
+            let card = document.getElementById(`pc-${data.sid}`);
+
+            // Pengolahan Gambar
+            let imageUrl = null;
+            let hasImage = false;
+
+            if (data.image) {
+                hasImage = true;
+                if (typeof data.image === 'string') {
+                    imageUrl = data.image.startsWith('data:image/')
+                        ? data.image
+                        : `data:image/webp;base64,${data.image}`;
+                } else if (data.image instanceof Blob || data.image instanceof ArrayBuffer || ArrayBuffer.isView(data.image)) {
+                    const blob = data.image instanceof Blob
+                        ? data.image
+                        : new Blob([data.image], { type: 'image/webp' });
+
+                    if (objectUrlCache[data.sid]) {
+                        URL.revokeObjectURL(objectUrlCache[data.sid]);
+                    }
+
+                    imageUrl = URL.createObjectURL(blob);
+                    objectUrlCache[data.sid] = imageUrl;
+                } else {
+                    hasImage = false;
+                }
+            }
+
+            const openWindows = data.telemetry?.open_windows || [];
+            activeAppsData[data.sid] = openWindows;
+            const isLocked = Boolean(data.is_locked || data.isLocked);
+
+            if (activeSid === data.sid) {
+                const fsImg = document.getElementById('fullscreen-img');
+                if (fsImg && imageUrl) fsImg.src = imageUrl;
+            }
+
+            const rawProgress = data.telemetry?.percentage_downloaded || 0;
+            const progress = Number(rawProgress);
+            const isDownloading = progress > 0;
+            const progressFormatted = Number.isInteger(progress) ? progress : progress.toFixed(1);
+
+            // 2. Buat Kartu Baru Jika Belum Ada
+            if (!card) {
+                card = document.createElement("div");
+                card.id = `pc-${data.sid}`;
+                card.className = "bg-gray-900 rounded-xl p-4 border border-gray-800 shadow-xl flex flex-col justify-between hover:border-gray-700 transition";
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-1.5 min-w-0 pr-2">
+                                <i data-lucide="monitor" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+                                <span class="hostname-text font-bold text-sm text-indigo-300 line-clamp-1 break-all" title="${data.hostname}">
+                                    ${data.hostname}
+                                </span>
+                            </div>
+
+                            <div class="relative group shrink-0">
+                                <button type="button" class="p-1 rounded-full text-gray-400 hover:text-indigo-400 hover:bg-gray-800/80 transition-colors focus:outline-none">
+                                    <i data-lucide="info" class="w-4 h-4"></i>
+                                </button>
+                                <div class="absolute right-0 top-full mt-1.5 hidden group-hover:flex flex-col gap-1.5 z-30 w-36 p-2.5 bg-gray-900 border border-gray-800 rounded-lg shadow-xl text-[11px] font-mono text-gray-200 pointer-events-none">
+                                    <div class="flex justify-between items-center border-b border-gray-800 pb-1">
+                                        <span class="text-gray-400 font-sans">Informasi Perangkat</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-400">VERSION:</span>
+                                        <span class="telemetry-agent-version font-semibold text-indigo-300">${data.telemetry?.agent_version || "0.0.0"}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-400">CPU:</span>
+                                        <span class="telemetry-cpu font-semibold text-indigo-300">${data.telemetry?.cpu || 0}%</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-gray-400">RAM:</span>
+                                        <span class="telemetry-ram font-semibold text-indigo-300">${data.telemetry?.ram || 0}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="relative group mb-3 w-full h-40 bg-gray-950 rounded-lg overflow-hidden border border-gray-800 shadow-inner flex items-center justify-center">
+                            <div class="lock-overlay ${isLocked ? '' : 'hidden'} absolute inset-0 bg-black/95 rounded-lg flex flex-col items-center justify-center gap-2 border border-yellow-600/40 z-30 backdrop-blur-md">
+                                <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-yellow-400 shadow-lg">
+                                    <i data-lucide="lock" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+
+                            <div class="spinner-overlay ${hasImage ? 'hidden' : ''} absolute inset-0 bg-gray-950 flex flex-col items-center justify-center gap-2 z-20">
+                                <div class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                <span class="text-[11px] text-gray-500 font-mono">Memuat Layar...</span>
+                            </div>
+
+                            <img ondblclick="openFullscreenView('${data.sid}', '${data.hostname}')"
+                                src="${imageUrl || ''}"
+                                class="student-screen ${hasImage ? '' : 'hidden'} w-full h-40 object-cover cursor-pointer z-10">
+                        </div>
+
+                        <div class="download-container ${isDownloading ? '' : 'hidden'} p-2.5 bg-gray-950 border border-indigo-500/30 rounded-lg flex flex-col gap-1.5">
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="flex items-center gap-1.5 text-indigo-400 font-medium">
+                                    <i data-lucide="download-cloud" class="w-3.5 h-3.5 animate-bounce"></i>
+                                    Mengunduh Update...
+                                </span>
+                                <span class="download-progress-text text-indigo-300 font-mono font-bold">${progressFormatted}%</span>
+                            </div>
+                            <div class="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden border border-gray-700">
+                                <div class="download-progress-bar bg-indigo-500 h-full transition-all duration-300 rounded-full" style="width: ${Math.min(100, Math.max(0, progress))}%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2 mt-2">
+                        <button onclick="showAppDetails('${data.sid}', '${data.hostname}')" class="w-full text-xs bg-gray-950 hover:bg-gray-800 text-gray-300 border border-gray-800 py-2 px-3 rounded-lg flex items-center justify-between transition group">
+                            <div class="flex items-center gap-2 overflow-hidden mr-1">
+                                <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                                <span class="truncate text-left">Aplikasi Aktif</span>
+                            </div>
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 shrink-0"></i>
+                        </button>
+
+                        <div class="relative">
+                            <button onclick="toggleDropdownMoreAction(event, '${data.sid}')" class="w-full text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-3 rounded-lg flex items-center justify-between transition shadow-md">
+                                <span class="flex items-center gap-2">
+                                    <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                                    More Action
+                                </span>
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                            </button>
+
+                            <div id="dropdown-${data.sid}" class="dropdown-menu hidden absolute bottom-full left-0 right-0 mt-1.5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 backdrop-blur-md">
+                                <button onclick="openFullscreenView('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-blue-400"></i> Fullscreen View
+                                </button>
+                                <button onclick="openRenameModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-400"></i> Ubah Nama PC
+                                </button>
+                                <button onclick="openMessageModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-400"></i> Kirim Pesan
+                                </button>
+                                <button onclick="openUrlModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="globe" class="w-3.5 h-3.5 text-sky-400"></i> Kunjungi URL
+                                </button>
+                                <button onclick="openMacroModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="keyboard" class="w-3.5 h-3.5 text-purple-400"></i> Ketik Otomatis
+                                </button>
+                                <div class="border-t border-gray-800 my-1"></div>
+                                <button onclick="openLockModal('${data.sid}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-yellow-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="lock" class="w-3.5 h-3.5 text-yellow-400"></i> Kunci Layar
+                                </button>
+                                <button onclick="unlockScreen('${data.sid}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-emerald-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="unlock" class="w-3.5 h-3.5 text-emerald-400"></i> Buka Kunci
+                                </button>
+                                <div class="border-t border-gray-800 my-1"></div>
+                                <button onclick="confirmShutdown('${data.sid}', '${data.hostname}')" class="w-full text-xs text-left px-3.5 py-2 text-rose-300 hover:bg-rose-600 hover:text-white flex items-center gap-2.5 transition">
+                                    <i data-lucide="power" class="w-3.5 h-3.5 text-rose-400"></i> Matikan PC
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById("student-grid").appendChild(card);
+                lucide.createIcons();
+            } else {
+                // Update Elemen Kartu yang Sudah Ada
+                const imgElem = card.querySelector('.student-screen');
+                const lockOverlay = card.querySelector('.lock-overlay');
+                const spinnerOverlay = card.querySelector('.spinner-overlay');
+
+                if (hasImage) {
+                    imgElem.src = imageUrl;
+                    imgElem.classList.remove('hidden');
+                    lockOverlay.classList.add('hidden');
+                    spinnerOverlay.classList.add('hidden');
+                } else {
+                    imgElem.classList.add('hidden');
+                }
+
+                const cpuEl = card.querySelector('.telemetry-cpu');
+                const ramEl = card.querySelector('.telemetry-ram');
+                const versionEl = card.querySelector('.telemetry-agent-version');
+
+                if (cpuEl) cpuEl.innerText = `${data.telemetry?.cpu || 0}%`;
+                if (ramEl) ramEl.innerText = `${data.telemetry?.ram || 0}%`;
+                if (versionEl) versionEl.innerText = `${data.telemetry?.agent_version || "0.0.0"}`;
+
+                const downloadContainer = card.querySelector('.download-container');
+                const progressBar = card.querySelector('.download-progress-bar');
+                const progressText = card.querySelector('.download-progress-text');
+
+                if (downloadContainer && progressBar && progressText) {
+                    if (isDownloading) {
+                        downloadContainer.classList.remove('hidden');
+                        progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+                        progressText.innerText = `${progressFormatted}%`;
+                    } else {
+                        downloadContainer.classList.add('hidden');
+                    }
+                }
+            }
+
+            // 3. Terapkan Filter jika ada
+            if (activeSearchKeyword || (activeRoom && activeRoom !== '' && activeRoom !== 'all')) {
+                applyCardFilters();
+            }
+        });
+        // Tutup dropdown jika klik di luar kartu
+        window.addEventListener('click', () => {
+            document.querySelectorAll('.dropdown-menu').forEach(el => el.classList.add('hidden'));
+        });
+
+        // Fungsi untuk membuat/memperbarui Live Status Panel di dalam #student-grid
+        function ensureLiveStatusPanel() {
+            const count = connectedPcs.size;
+            console.log(rooms);
+
+            // Perbarui jumlah PC yang terhubung di panel status
+            const statElem = document.getElementById("stat-online-pc");
+            if (statElem) statElem.innerText = count;
+
+            if (window.innerWidth < 1024) return;
+
+            const grid = document.getElementById("student-grid");
+            if (!grid) return;
+
+            let panel = document.getElementById("live-status-panel");
+
+            // Jika PC ada dan panel belum dibuat, render panel ke grid
+            if (!panel && count > 0) {
+                panel = document.createElement("div");
+                panel.id = "live-status-panel";
+                panel.className = "p-5 rounded-xl bg-white/[0.02] border border-white/10 space-y-4 hidden lg:block";
+
+                // Tampilan Role Select (Admin vs Staff)
+                const isAdmin = user && ['direktur', 'developer', 'admin'].includes(user.role);
+                let roomSelectHtml = '';
+
+                if (isAdmin) {
+                    // Generate elemen <option> secara dinamis berdasarkan data dari variabel rooms
+                    const roomOptions = (typeof rooms !== 'undefined' && Array.isArray(rooms))
+                        ? rooms.map(r => `<option value="${r.name}">${r.name}</option>`).join('')
+                        : '<option value="1">LAB-01</option>';
+
+                    roomSelectHtml = `
+                        <select id="desktop-room-select" onchange="switchRoom(this.value)" class="bg-gray-900 border border-gray-800 text-indigo-400 font-mono text-[10px] rounded px-2 py-0.5 focus:outline-none cursor-pointer">
+                            ${roomOptions}
+                        </select>
+                    `;
+                } else {
+                    const firstRoomName = (typeof rooms !== 'undefined' && rooms.length > 0) ? rooms[0].name : 'LAB-01';
+                    roomSelectHtml = `<span class="text-[10px] text-indigo-400 font-mono">${firstRoomName}</span>`;
+                }
+
+                panel.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-gray-300 uppercase tracking-wider">Status Ruangan</span>
+                        ${roomSelectHtml}
+                    </div>
+
+                    <div class="flex flex-col gap-2.5">
+                        <div class="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/20 flex justify-between items-center">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span class="text-xs font-semibold text-gray-200"><span id="stat-online-pc">${count}</span> PC Terhubung</span>
+                            </div>
+                            <span class="text-[10px] font-mono text-emerald-400">Online</span>
+                        </div>
+                        <div class="p-3 rounded-lg bg-indigo-950/30 border border-indigo-500/20 flex justify-between items-center">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="activity" class="w-3.5 h-3.5 text-indigo-400"></i>
+                                <span class="text-xs font-semibold text-gray-200">Respon Latensi</span>
+                            </div>
+                            <span class="text-[10px] font-mono text-indigo-400">&lt; 12ms</span>
+                        </div>
+                        <div class="w-full">
+                            <div class="flex items-center gap-2.5 w-full bg-gray-900 border border-gray-800 focus-within:border-indigo-500 rounded-lg px-3 py-2.5 transition">
+                                <i data-lucide="search" class="w-3.5 h-3.5 text-gray-500 shrink-0"></i>
+                                <input type="text" id="search-hostname-input" oninput="filterPcsByHostname(this.value)" 
+                                    placeholder="Cari Nama PC" 
+                                    class="w-full bg-transparent border-none text-sm text-gray-100 placeholder-gray-500 focus:outline-none p-0">
+                            </div>
+                        </div>
+
+                        <button id="toggle-multiselect-btn" onclick="toggleMultiSelectMode()" 
+                            class="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition">
+                            <i data-lucide="check-circle-2" class="w-4 h-4 text-indigo-400"></i>
+                            <span id="multiselect-btn-text">Pilih Banyak PC</span>
+                        </button>
+                    </div>
+                `;
+
+                grid.prepend(panel);
+                lucide.createIcons();
+            }
+        }
+
+        function sendDirectCommand(sid, action, extraData = {}) {
+            socket.emit("send_command", { executed_by:user.id, target_sid: sid, command: {action: action, ...extraData} });
+        }
+
+        function toggleDropdownMoreAction(event, sid) {
+            event.stopPropagation();
+            // Tutup semua dropdown lain yang sedang terbuka
+            document.querySelectorAll('.dropdown-menu').forEach(el => {
+                if (el.id !== `dropdown-${sid}`) el.classList.add('hidden');
+            });
+
+            const dropdown = document.getElementById(`dropdown-${sid}`);
+            if (dropdown) dropdown.classList.toggle('hidden');
+        }
+
+        // Toggle Dropdown Profile
+        function toggleProfileDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('profile-dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Tutup dropdown jika area di luar diklik
+        window.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('profile-dropdown');
+            if (dropdown && !dropdown.classList.contains('hidden')) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Inisialisasi ikon saat pertama kali dibuka
+        lucide.createIcons();
+    </script>
+</body>
+</html>

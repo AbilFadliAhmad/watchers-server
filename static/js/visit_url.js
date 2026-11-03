@@ -115,7 +115,11 @@ function submitUrlCommand() {
     }
 
     // Kirim perintah SocketIO
-    sendDirectCommand(targetSid, 'open_url', { url: rawUrl });
+    sendDirectCommand(targetSid, 'open_url', { 
+        url: rawUrl, 
+        log_details: `Perintah buka URL dikirim melalui panel manajemen. URL: "${rawUrl}"`, 
+        is_warning: false 
+    });
 
     // Notifikasi Toast
     if (typeof Toastify === 'function') {

@@ -37,21 +37,40 @@ function toggleAgentSelection(sid) {
     console.log('[+] choosen_agents terkini:', choosen_agents);
 }
 
-// 3. Filter PC berdasarkan Input Search Bar Hostname
-function filterPcsByHostname(query) {
-    const keyword = query.toLowerCase().trim();
+// 1. Fungsi Utama Evaluasi Kombinasi Filter (Room + Hostname)
+function applyCardFilters() {
     const allCards = document.querySelectorAll('#student-grid > [id^="pc-"]');
 
     allCards.forEach(card => {
         const hostnameEl = card.querySelector('.hostname-text');
         const hostname = hostnameEl ? hostnameEl.innerText.toLowerCase() : '';
+        const cardRoom = card.getAttribute('data-room-id') || card.getAttribute('data-room') || '';
 
-        if (hostname.includes(keyword)) {
+        // Evaluasi Kriteria 1: Room Match
+        const matchesRoom = !activeRoom || activeRoom === 'all' || cardRoom.toString() === activeRoom.toString();
+
+        // Evaluasi Kriteria 2: Hostname Match Substring
+        const matchesSearch = activeSearchKeyword === '' || hostname.includes(activeSearchKeyword);
+
+        // Kartu hanya tampil jika KEDUA syarat terpenuhi
+        if (matchesRoom && matchesSearch) {
             card.classList.remove('hidden');
         } else {
             card.classList.add('hidden');
         }
     });
+}
+
+// 2. Handler Input Search Hostname
+function filterPcsByHostname(query) {
+    activeSearchKeyword = (query || '').toLowerCase().trim();
+    applyCardFilters();
+}
+
+// 3. Handler Switch Dropdown Room
+function switchRoom(selectedRoom) {
+    activeRoom = selectedRoom;
+    applyCardFilters();
 }
 
 // 4. Perbarui Tampilan UI Kartu & Bulatan Seleksi

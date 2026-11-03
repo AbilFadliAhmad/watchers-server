@@ -21,6 +21,16 @@ CURRENT_SHA256 = ""
 CURRENT_URL_DOWNLOAD = ""
 get_active_installer_config()  # Memuat versi aktif terakhir dari database ke variabel global
 
+# Mapping filter waktu ke ekspresi modifier SQLite
+TIME_RANGE_MAP = {
+    "1w": "-7 days",
+    "2w": "-14 days",
+    "1m": "-1 month",
+    "3m": "-3 months",
+    "6m": "-6 months",
+    "1y": "-1 year"
+}
+
 UPLOAD_DIR = "downloads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -132,7 +142,6 @@ async def on_stop_focus(sid, data):
                 to=target_sid,
             )
 
-
 @sio.on("register_teacher") # type: ignore
 async def on_register_teacher(sid, data):
     """Mendaftarkan koneksi browser guru ke room 'all'."""
@@ -227,11 +236,13 @@ async def on_student_frame(sid, data):
 async def on_send_command(sid, data):
     """
     Menerima perintah remot dari Web Dashboard Guru dan meneruskannya ke Client Siswa.
-    Payload: {"target_sid": "all" | "DEVICE_ID", "command": {"action": "lock" | "unlock", ...}}
+    Payload: {"target_sid": "all" | "DEVICE_ID", "command": {"action": "message", "is_warning": "iya" | false, ...}}
     """
 
     command = data.get("command", {})
     action = command.get("action")
+    is_warning = command.get("is_warning", False)
+    log_details = command.get("log_details", "Tidak ada catatan")  # Default jika tidak ada log_details
     raw_target = data.get("target_sid")
     target_room = (await sio.get_session(sid) or {}).get('room', '')
     executed_by = data.get("executed_by")
@@ -240,24 +251,20 @@ async def on_send_command(sid, data):
     if raw_target == "all":
         socket_target = "all"
     else:
-        # Mengambil Socket SID asli dari dictionary connected_students (jika key-nya device_id)
         student_info = connected_students.get(raw_target, {})
         socket_target = student_info.get("sid", raw_target)
 
-    # 2. UPDATE DATABASE LOGIC (Gunakan Helper)
+    # 2. UPDATE DATABASE LOGIC (Status Kunci Layar)
     if action in ["lock", "unlock"]:
         is_locked = (action == "lock")
         msg = command.get("message", "DIKUNCI OLEH GURU") if is_locked else ""
         pwd = command.get("password", "") if is_locked else ""
 
-        # Tentukan daftar device_id yang akan diupdate di DB
         if raw_target == "all":
-            # Ambil seluruh key (device_id) dari connected_students
             target_device_ids = list(connected_students.keys())
         else:
             target_device_ids = [raw_target]
 
-        # Simpan status terbaru ke database SQLite
         update_clients_lock_status(
             device_ids=target_device_ids,
             is_locked=is_locked,
@@ -265,38 +272,19 @@ async def on_send_command(sid, data):
             password=pwd
         )
 
-    # 3. MENCATAT ACTIVITY LOG
-    if action:
-        # Ekstrak detail pesan/catatan berdasarkan jenis perintah
-        log_details = ""
-        if action == "lock":
-            log_details = command.get("message", "Layar dikunci oleh pengajar")
-        elif action == "unlock":
-            log_details = "Membuka kuncian layar"
-        elif action == "message":
-            log_details = command.get("message", "")
-        elif action == "open_url":
-            log_details = command.get("url", "")
-        elif action == "macro":
-            log_details = command.get("text", "")
-        elif action == "shutdown":
-            log_details = command.get("reason", "Perintah matikan PC")
-        elif action == "ota_update":
-            log_details = "Pembaruan versi agent client"
-
-        record_activity_log(
-            client_id=raw_target,
-            action_type=action,
-            details=log_details,
-            executed_by=executed_by
-        )
+    # 3. RECORD LOG & PELANGGARAN
+    record_activity_log(
+        client_id=raw_target,
+        action_type=action,
+        details=log_details,
+        executed_by=executed_by,
+        is_warning=is_warning
+    )
 
     # 4. KIRIM PERINTAH LEWAT WEBSOCKET
     if socket_target == "all":
-        # Kirim perintah ke seluruh client di room guru
         await sio.emit("command", command, skip_sid=list(teacher_sids), room=target_room)
     elif socket_target:
-        # Kirim spesifik ke 1 PC siswa saja
         await sio.emit("command", command, to=socket_target)
 
 @sio.on("verify_unlock_password") # type: ignore
@@ -315,7 +303,41 @@ async def on_verify_unlock_password(sid, data):
 
 # --- FASTAPI HTTP ROUTES ---
 @app.get("/")
-async def get_dashboard(request: Request, response: Response):
+async def get_home(request: Request, response: Response):
+    """Menyajikan halaman utama."""
+    try:
+            # Cek sesi autentikasi pengguna saat ini
+            user = await get_current_user(request, response)
+            if user:
+                return RedirectResponse(url="/control", status_code=status.HTTP_302_FOUND)
+            else:
+                # Memicu HTTPException secara manual agar melompat ke blok except di bawah
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    except HTTPException:
+            # Jika token tidak ada / expired (401), biarkan lanjut menampilkan halaman login
+            pass
+    
+    return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/landing")
+async def get_landing(request: Request, response: Response):
+    """Menyajikan halaman landing."""
+    try:
+            # Cek sesi autentikasi pengguna saat ini
+            user = await get_current_user(request, response)
+            if user:
+                return RedirectResponse(url="/control", status_code=status.HTTP_302_FOUND)
+            else:
+                # Memicu HTTPException secara manual agar melompat ke blok except di bawah
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    except HTTPException:
+            # Jika token tidak ada / expired (401), biarkan lanjut menampilkan halaman login
+            pass
+    
+    return templates.TemplateResponse(request=request, name="landing.html")
+
+@app.get("/control")
+async def get_control(request: Request, response: Response):
     """Menyajikan halaman Web Dashboard dengan data manajemen terpadu."""
     try:
         user = await get_current_user(request, response)
@@ -323,7 +345,7 @@ async def get_dashboard(request: Request, response: Response):
 
         template_res =  templates.TemplateResponse(
             request=request,
-            name="index.html",
+            name="control.html",
             context={
                 "user": user,
                 "users": mgmt_data["users"],
@@ -344,7 +366,7 @@ async def get_dashboard(request: Request, response: Response):
     except HTTPException as e:
         if e.status_code == status.HTTP_401_UNAUTHORIZED:
             return RedirectResponse(
-                url="/login", status_code=status.HTTP_302_FOUND
+                url="/", status_code=status.HTTP_302_FOUND
             )
         raise e
 
@@ -355,7 +377,7 @@ async def get_login_page(request: Request, response: Response):
         # Cek sesi autentikasi pengguna saat ini
         user = await get_current_user(request, response)
         if user:
-            return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+            return RedirectResponse(url="/control", status_code=status.HTTP_302_FOUND)
         else:
             # Memicu HTTPException secara manual agar melompat ke blok except di bawah
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
@@ -368,29 +390,37 @@ async def get_login_page(request: Request, response: Response):
 
 @app.get("/logs", response_class=HTMLResponse)
 async def get_logs_page(
-        request: Request,
-        response: Response,
-        action: Optional[str] = Query(None)
+    request: Request,
+    response: Response,
+    action: Optional[str] = Query(None),
+    time_range: Optional[str] = Query("1w")
 ):
-    """Menyajikan halaman HTML khusus Log & Teguran."""
+    """Menyajikan halaman HTML Log & Pelanggaran."""
     try:
         user = await get_current_user(request, response)
-        log_data = await get_logs_data(current_user=user, action=action)
+        selected_time = time_range if time_range in TIME_RANGE_MAP else "1w"
+        
+        data = await get_logs_data(
+            current_user=user, 
+            action=action, 
+            time_range=selected_time
+        )
+        
         return templates.TemplateResponse(
             request=request,
-            name="log.html",
+            name="logs.html",
             context={
                 "user": user,
-                "logs": log_data["logs"],
-                "top_offenders": log_data["top_offenders"],
-                "selected_action": action or ""
+                "violations": data["violations"],
+                "logs": data["logs"],
+                "selected_action": action or "",
+                "selected_time_range": selected_time
             }
         )
     except HTTPException as e:
         if e.status_code == status.HTTP_401_UNAUTHORIZED:
             return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
         raise e
-
 
 @app.post("/upload-update")
 async def upload_ota_update(request: Request, file: UploadFile = File(...)):

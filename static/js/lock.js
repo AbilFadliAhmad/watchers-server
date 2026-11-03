@@ -112,18 +112,13 @@ function submitLockCommand() {
     }
 
     try {
-        const payload = {
-            target_sid: targetSid,
-            command: {
-                action: 'lock',
-                message: message,
-                password: password
-            }
-        };
-
-        const socketConn = (typeof sio !== 'undefined' && sio.connected) ? sio : (typeof socket !== 'undefined' && socket.connected ? socket : null);
-        if (socketConn) socketConn.emit("send_command", payload);
-
+        sendDirectCommand(targetSid, 'lock', { 
+            log_details: `Perintah kunci layar dikirim melalui panel manajemen. Pesan: "${message}"`,
+            is_warning: true,
+            message: message,
+            password: password
+        });
+        
         // Update Overlay UI Secara Aman
         if (targetSid === 'all') {
             document.querySelectorAll('.lock-overlay').forEach(el => el.classList.remove('hidden'));

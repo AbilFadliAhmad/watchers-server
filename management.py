@@ -76,11 +76,16 @@ async def get_management_data(user_role: str) -> dict:
         conn.close()
 
 # --- HELPER FUNCTION: MENCATAT LOG AKTIVITAS ---
-def record_activity_log(client_id: str, action_type: str, details: str, executed_by: str):
-    """Mencatat aktivitas perintah ke tabel activity_logs."""
+def record_activity_log(client_id: str, action_type: str, details: str, executed_by: str, is_warning: bool | str = False):
+    """
+    Mencatat aktivitas perintah ke tabel activity_logs.
+    Jika parameter is_warning bernilai True / 'iya', data juga akan disimpan ke tabel user_violations.
+    """
     try:
         conn = sqlite3.connect("watchers.db")
         cursor = conn.cursor()
+
+        # 1. Selalu catat ke tabel activity_logs (Riwayat Umum)
         cursor.execute(
             """
             INSERT INTO activity_logs (client_id, action_type, details, executed_by)
@@ -88,40 +93,96 @@ def record_activity_log(client_id: str, action_type: str, details: str, executed
             """,
             (client_id, action_type, details, executed_by)
         )
+
+        # 2. Cek apakah status pelanggaran/peringatan aktif (bisa berupa boolean True atau string 'iya')
+        is_violation = is_warning in [True, "iya", "true", "True", 1]
+
+        if is_violation:
+            cursor.execute(
+                """
+                INSERT INTO user_violations (client_id, action_type, details, executed_by)
+                VALUES (?, ?, ?, ?)
+                """,
+                (client_id, action_type, details, executed_by)
+            )
+
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"Gagal mencatat log aktivitas: {e}")
+        print(f"Gagal mencatat log aktivitas/pelanggaran: {e}")
 
 # --- HELPER: MENGAMBIL DATA LOGS ---
-async def get_logs_data(current_user: dict, action: Optional[str] = None, limit: int = 100) -> dict:
+async def get_logs_data(
+    current_user: dict, 
+    action: Optional[str] = None, 
+    time_range: str = "1w", 
+) -> dict:
     """
-    Mengambil data log aktivitas & rekapitulasi teguran dari database.
-    Filter otomatis berdasarkan nama room pengguna (LIKE 'room%') kecuali jika room = 'all' atau role admin/developer/direktur.
+    Mengambil data pelanggaran (user_violations) dan log aktivitas (activity_logs) dari database.
+    Filter otomatis berdasarkan room pengguna, jenis aksi, dan kurun waktu.
     """
+
+    from main import TIME_RANGE_MAP
+    
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     user_room = current_user.get("room", "all").lower()
     user_role = current_user.get("role", "").lower()
+    time_modifier = TIME_RANGE_MAP.get(time_range, "-7 days")
 
-    where_conditions = []
-    params = []
+    # -------------------------------------------------------------
+    # 1. Query Data Pelanggaran (user_violations)
+    # -------------------------------------------------------------
+    v_where = ["v.created_at >= datetime('now', ?)"]
+    v_params = [time_modifier]
 
-    # 1. Filter berdasarkan Room Name (c.name LIKE 'room%')
     if user_room != "all" and user_role not in ["admin", "developer", "direktur"]:
-        where_conditions.append("LOWER(c.name) LIKE ?")
-        params.append(f"{user_room}%")
+        v_where.append("LOWER(c.name) LIKE ?")
+        v_params.append(f"{user_room}%")
 
-    # 2. Filter berdasarkan Jenis Aksi
     if action and action.strip():
-        where_conditions.append("l.action_type = ?")
-        params.append(action.strip())
+        v_where.append("v.action_type = ?")
+        v_params.append(action.strip())
 
-    sql_where = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+    v_sql_where = f"WHERE {' AND '.join(v_where)}"
 
-    logs_query = f"""
+    v_query = f"""
+        SELECT 
+            v.id,
+            v.client_id,
+            COALESCE(c.name, v.client_id) AS hostname,
+            v.action_type,
+            v.details,
+            u.username AS executed_by_username,
+            v.created_at
+        FROM user_violations v
+        LEFT JOIN clients c ON v.client_id = c.id
+        LEFT JOIN users u ON v.executed_by = u.id
+        {v_sql_where}
+        ORDER BY v.id DESC
+    """
+    cursor.execute(v_query, tuple(v_params))
+    violations = [dict(row) for row in cursor.fetchall()]
+
+    # -------------------------------------------------------------
+    # 2. Query Data Log Aktivitas Umum (activity_logs)
+    # -------------------------------------------------------------
+    l_where = ["l.created_at >= datetime('now', ?)"]
+    l_params = [time_modifier]
+
+    if user_room != "all" and user_role not in ["admin", "developer", "direktur"]:
+        l_where.append("LOWER(c.name) LIKE ?")
+        l_params.append(f"{user_room}%")
+
+    if action and action.strip():
+        l_where.append("l.action_type = ?")
+        l_params.append(action.strip())
+
+    l_sql_where = f"WHERE {' AND '.join(l_where)}"
+
+    l_query = f"""
         SELECT 
             l.id,
             l.client_id,
@@ -133,49 +194,20 @@ async def get_logs_data(current_user: dict, action: Optional[str] = None, limit:
         FROM activity_logs l
         LEFT JOIN clients c ON l.client_id = c.id
         LEFT JOIN users u ON l.executed_by = u.id
-        {sql_where}
+        {l_sql_where}
         ORDER BY l.id DESC
-        LIMIT ?
     """
-    params.append(limit)
-    cursor.execute(logs_query, tuple(params))
+    cursor.execute(l_query, tuple(l_params))
     logs = [dict(row) for row in cursor.fetchall()]
-
-    # 3. Query Rekapitulasi Top 5 PC Sering Ditegur/Dikunci
-    stats_where_conditions = []
-    stats_params = []
-
-    if user_room != "all" and user_role not in ["admin", "developer", "direktur"]:
-        stats_where_conditions.append("LOWER(c.name) LIKE ?")
-        stats_params.append(f"{user_room}%")
-
-    stats_where_conditions.append("l.client_id != 'all'")
-    stats_sql_where = f"WHERE {' AND '.join(stats_where_conditions)}"
-
-    stats_query = f"""
-        SELECT 
-            COALESCE(c.name, l.client_id) AS hostname,
-            COUNT(*) as total_actions,
-            SUM(CASE WHEN l.action_type = 'lock' THEN 1 ELSE 0 END) as lock_count,
-            SUM(CASE WHEN l.action_type = 'message' THEN 1 ELSE 0 END) as warning_count
-        FROM activity_logs l
-        LEFT JOIN clients c ON l.client_id = c.id
-        {stats_sql_where}
-        GROUP BY COALESCE(c.name, l.client_id)
-        ORDER BY total_actions DESC
-        LIMIT 5
-    """
-    cursor.execute(stats_query, tuple(stats_params))
-    top_offenders = [dict(row) for row in cursor.fetchall()]
 
     conn.close()
 
     return {
         "status": "success",
-        "current_room_filter": user_room,
-        "logs": logs,
-        "top_offenders": top_offenders
+        "violations": violations,
+        "logs": logs
     }
+
 # --- HELPER : GET DATA CONFIG STREAMING ---
 def fetch_stream_config_from_db():
     """Mengambil konfigurasi dari SQLite dan menyusunnya ke dict RAM."""

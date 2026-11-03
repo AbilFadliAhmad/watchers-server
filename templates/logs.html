@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Log & Pelanggaran - Watchers</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#4f46e5',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen flex flex-col p-6">
+
+    <!-- Header Control Bar -->
+    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-800 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-rose-400 flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-7 h-7 text-rose-500"></i>
+                Watchers Audit & Pelanggaran
+            </h1>
+            <p class="text-xs text-gray-400 mt-0.5">Rekapitulasi Pelanggaran Siswa & Riwayat Aktivitas Perintah</p>
+        </div>
+
+        <!-- Tombol Kembali ke Dashboard -->
+        <a href="/" class="group inline-flex items-center gap-2.5 px-4 py-2 bg-gray-900/80 hover:bg-gray-800 text-gray-300 hover:text-white border border-gray-800 hover:border-indigo-500/50 rounded-xl transition-all duration-200 shadow-sm text-xs font-medium backdrop-blur-sm">
+            <i data-lucide="arrow-left" class="w-4 h-4 text-indigo-400 group-hover:-translate-x-1 transition-transform duration-200"></i>
+            <span>Dashboard</span>
+        </a>
+    </header>
+
+    <!-- Global Filter Form -->
+    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl mb-6">
+        <form method="GET" action="/logs" class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <!-- Search Hostname -->
+                <div class="relative flex-1 sm:w-64">
+                    <i data-lucide="search" class="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" id="log-search-input" onkeyup="filterLocalLogs()" placeholder="Cari Hostname PC..."
+                        class="w-full bg-gray-950 border border-gray-800 focus:border-rose-500 text-xs text-gray-100 rounded-xl pl-9 pr-3 py-2 focus:outline-none transition">
+                </div>
+
+                <!-- Filter Kurun Waktu -->
+                <select name="time_range" onchange="this.form.submit()"
+                    class="bg-gray-950 border border-gray-800 focus:border-rose-500 text-xs text-gray-200 rounded-xl px-3 py-2 focus:outline-none transition">
+                    <option value="1w" {% if selected_time_range == '1w' %}selected{% endif %}>1 Minggu Terakhir</option>
+                    <option value="2w" {% if selected_time_range == '2w' %}selected{% endif %}>2 Minggu Terakhir</option>
+                    <option value="1m" {% if selected_time_range == '1m' %}selected{% endif %}>1 Bulan Terakhir</option>
+                    <option value="3m" {% if selected_time_range == '3m' %}selected{% endif %}>3 Bulan Terakhir</option>
+                    <option value="6m" {% if selected_time_range == '6m' %}selected{% endif %}>6 Bulan Terakhir</option>
+                    <option value="1y" {% if selected_time_range == '1y' %}selected{% endif %}>1 Tahun Terakhir</option>
+                </select>
+
+                <!-- Filter Jenis Aksi -->
+                <select name="action" onchange="this.form.submit()"
+                    class="bg-gray-950 border border-gray-800 focus:border-rose-500 text-xs text-gray-200 rounded-xl px-3 py-2 focus:outline-none transition">
+                    <option value="" {% if not selected_action %}selected{% endif %}>Semua Jenis Perintah</option>
+                    <option value="message" {% if selected_action == 'message' %}selected{% endif %}>Pesan / Teguran</option>
+                    <option value="lock" {% if selected_action == 'lock' %}selected{% endif %}>Kunci Layar</option>
+                    <option value="unlock" {% if selected_action == 'unlock' %}selected{% endif %}>Buka Kunci</option>
+                    <option value="shutdown" {% if selected_action == 'shutdown' %}selected{% endif %}>Matikan PC</option>
+                    <option value="open_url" {% if selected_action == 'open_url' %}selected{% endif %}>Kunjungi URL</option>
+                    <option value="macro" {% if selected_action == 'macro' %}selected{% endif %}>Ketik Otomatis</option>
+                </select>
+            </div>
+
+            <a href="/logs" class="p-2 text-gray-400 hover:text-white bg-gray-950 border border-gray-800 hover:border-gray-700 rounded-xl transition text-xs flex items-center gap-1.5" title="Reset Filter">
+                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> Reset
+            </a>
+        </form>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto space-y-8">
+
+        <!-- SECTION 1: TABEL PELANGGARAN SISWA (user_violations) -->
+        <section class="bg-gray-900 border border-rose-900/40 rounded-2xl shadow-xl overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-gray-800 bg-rose-950/20 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-rose-300">Daftar Pelanggaran Siswa</h2>
+                </div>
+                <div class="text-xs text-rose-400 font-mono font-bold">
+                    Total: <span>{{ violations | length }}</span> Pelanggaran
+                </div>
+            </div>
+
+            <div class="overflow-x-auto custom-scrollbar max-h-80">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="sticky top-0 z-10 bg-gray-950 text-gray-400 border-b border-gray-800 text-[11px] font-semibold uppercase tracking-wider">
+                        <tr>
+                            <th class="p-3">Waktu</th>
+                            <th class="p-3">Hostname PC</th>
+                            <th class="p-3">Status Aksi</th>
+                            <th class="p-3">Pesan / Peringatan Pelanggaran</th>
+                            <th class="p-3">Operator</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800/60 text-gray-300">
+                        {% for v in violations %}
+                        <tr class="log-row bg-rose-950/10 hover:bg-rose-950/30 transition">
+                            <td class="p-3 text-[11px] font-mono text-gray-400 whitespace-nowrap">{{ v.created_at }}</td>
+                            <td class="p-3 font-bold text-rose-300 log-hostname">{{ v.hostname }}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border bg-rose-950 text-rose-400 border-rose-800">
+                                    {{ v.action_type }}
+                                </span>
+                            </td>
+                            <td class="p-3 text-gray-200 truncate max-w-md" title="{{ v.details or '-' }}">{{ v.details or '-' }}</td>
+                            <td class="p-3 text-sky-400 capitalize font-semibold">{{ v.executed_by_username }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-6 text-gray-500 text-xs">
+                                Tidak ada catatan pelanggaran dalam periode ini.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+
+        <!-- SECTION 2: TABEL LOG AKTIVITAS UMUM (activity_logs) -->
+        <section class="bg-gray-900 border border-gray-800 rounded-2xl shadow-xl overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-gray-800 bg-gray-900/60 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4 text-emerald-400"></i>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-300">Riwayat Perintah Sistem</h2>
+                </div>
+                <div class="text-xs text-emerald-400 font-mono font-bold">
+                    Total: <span>{{ logs | length }}</span> Log Aktivitas
+                </div>
+            </div>
+
+            <div class="overflow-x-auto custom-scrollbar max-h-96">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="sticky top-0 z-10 bg-gray-950 text-gray-400 border-b border-gray-800 text-[11px] font-semibold uppercase tracking-wider">
+                        <tr>
+                            <th class="p-3">Waktu</th>
+                            <th class="p-3">Hostname PC</th>
+                            <th class="p-3">Jenis Aksi</th>
+                            <th class="p-3">Detail Perintah</th>
+                            <th class="p-3">Operator</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800/60 text-gray-300">
+                        {% for log in logs %}
+                        <tr class="log-row hover:bg-gray-800/40 transition">
+                            <td class="p-3 text-[11px] font-mono text-gray-400 whitespace-nowrap">{{ log.created_at }}</td>
+                            <td class="p-3 font-bold text-gray-200 log-hostname">{{ log.hostname }}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded-md text-[10px] font-bold uppercase border
+                                    {% if log.action_type == 'lock' %}bg-yellow-950/60 text-yellow-400 border-yellow-800/60
+                                    {% elif log.action_type == 'unlock' %}bg-emerald-950/60 text-emerald-400 border-emerald-800/60
+                                    {% elif log.action_type == 'message' %}bg-amber-950/60 text-amber-400 border-amber-800/60
+                                    {% elif log.action_type == 'shutdown' %}bg-rose-950/60 text-rose-400 border-rose-800/60
+                                    {% elif log.action_type == 'open_url' %}bg-sky-950/60 text-sky-400 border-sky-800/60
+                                    {% elif log.action_type == 'macro' %}bg-purple-950/60 text-purple-400 border-purple-800/60
+                                    {% else %}bg-gray-900 text-gray-400 border-gray-800{% endif %}">
+                                    {{ log.action_type }}
+                                </span>
+                            </td>
+                            <td class="p-3 text-gray-300 truncate max-w-md" title="{{ log.details or '-' }}">{{ log.details or '-' }}</td>
+                            <td class="p-3 text-sky-400 capitalize font-semibold">{{ log.executed_by_username }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-6 text-gray-500 text-xs">
+                                Belum ada log aktivitas yang tercatat.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        });
+
+        function filterLocalLogs() {
+            const search = document.getElementById("log-search-input").value.toLowerCase();
+            const rows = document.querySelectorAll(".log-row");
+
+            rows.forEach(row => {
+                const hostname = row.querySelector(".log-hostname").textContent.toLowerCase();
+                if (hostname.includes(search)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+    </script>
+</body>
+</html>

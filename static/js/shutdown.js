@@ -77,7 +77,10 @@ function confirmShutdown(sid = null, hostname = "Semua PC") {
     const btnConfirm = document.getElementById('btn-execute-confirm');
     btnConfirm.onclick = () => {
         const selectedCommand = actionSelect.value; // 'shutdown' atau 'restart'
-        sendDirectCommand(activeSid || 'all', selectedCommand);
+        sendDirectCommand(activeSid || 'all', selectedCommand, {
+            log_details: `Perintah ${selectedCommand} dikirim melalui panel manajemen.`,
+            is_warning: true
+        });
         closeConfirmModal();
     };
 

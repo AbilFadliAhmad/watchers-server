@@ -123,11 +123,30 @@ def init_db():
                 executed_by TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+                FOREIGN KEY (executed_by) REFERENCES users(id) ON DELETE SET NULL
             )
         """)
     # Membuat Index pada client_id
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_client_id ON activity_logs(client_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_logs_executed_by ON activity_logs(executed_by)")
 
+    # 11. TABEL BARU: user_violations (Pencatatan Khusus Pelanggaran Siswa)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_violations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id TEXT NOT NULL,
+            action_type TEXT NOT NULL,
+            details TEXT DEFAULT '',
+            executed_by TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+            FOREIGN KEY (executed_by) REFERENCES users(id) ON DELETE SET NULL
+        )
+    """)
+
+    # Membuat Index pada client_id dan executed_by untuk mempercepat query log pelanggaran
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_violations_client_id ON user_violations(client_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_violations_executed_by ON user_violations(executed_by)")
+    
     conn.commit()
     conn.close()

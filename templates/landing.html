@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchers Control Center | Enterprise Lab Management</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eep2ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            900: '#312e81',
+                            950: '#090d16',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'glow': 'glow 3s ease-in-out infinite alternate',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        glow: {
+                            '0%': { opacity: '0.4', filter: 'blur(20px)' },
+                            '100%': { opacity: '0.8', filter: 'blur(35px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Pattern Background Overlay */
+        .bg-grid-pattern {
+            background-image: radial-gradient(rgba(99, 102, 241, 0.15) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="bg-brand-950 text-gray-100 font-sans antialiased selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+
+    <!-- Ambient Glowing Orbs Background -->
+    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-tr from-indigo-600/30 via-purple-600/20 to-cyan-500/10 rounded-full blur-[120px] pointer-events-none -z-10 animate-pulse-slow"></div>
+    <div class="fixed top-[600px] -right-[200px] w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+
+    <!-- Glassmorphism Navbar -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-brand-950/70 border-b border-white/10 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                
+                <!-- Brand Logo -->
+                <a href="#" class="flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-xl font-extrabold tracking-tight text-white group-hover:text-indigo-300 transition-colors">WATCHERS</span>
+                        <span class="text-[9px] font-mono tracking-widest text-indigo-400 uppercase -mt-1">Control Center</span>
+                    </div>
+                </a>
+
+                <!-- Navigation Links -->
+                <nav class="hidden md:flex items-center gap-8">
+                    <a href="#solusi" class="text-sm font-medium text-gray-300 hover:text-white hover:shadow-sm transition">Solusi</a>
+                    <a href="#keunggulan" class="text-sm font-medium text-gray-300 hover:text-white hover:shadow-sm transition">Mengapa Kami</a>
+                    <a href="#pricing" class="text-sm font-medium text-gray-300 hover:text-white hover:shadow-sm transition">Harga & Lisensi</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative pt-36 pb-20 md:pt-48 md:pb-32 bg-grid-pattern">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="text-center max-w-4xl mx-auto space-y-6">
+                <!-- Badge Version -->
+                <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/50 border border-indigo-500/20 shadow-lg text-xs font-semibold tracking-wide text-indigo-200">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span>Modern Monitoring Next-Gen Architecture</span>
+                </div>
+
+
+                <!-- Main Headline -->
+                <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.1]">
+                    Pengawasan Lab Komputer <br class="hidden sm:inline">
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-cyan-400">
+                        Tanpa Batas & Ultra-Realtime
+                    </span>
+                </h1>
+
+                <!-- Subtitle -->
+                <p class="text-base sm:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+                    Platform manajemen laboratorium modern yang memadukan eksekusi perintah instan, pemantauan status real-time, dan audit log otomatis dalam satu antarmuka yang presisi.
+                </p>
+
+                <!-- Hero CTA Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                    <a href="/login" class="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition-all hover:shadow-indigo-500/50 hover:-translate-y-0.5 flex items-center justify-center gap-3">
+                        <span>Download Sekarang</span>
+                    </a>
+                    <a href="#packages" class="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 font-semibold text-sm transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                        <span>Lihat Paket Yang Tersedia</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- LUXURY PLACEHOLDER: Interactive App Preview Showcase -->
+            <div class="mt-16 sm:mt-24 relative max-w-5xl mx-auto">
+                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 rounded-2xl blur-xl opacity-30 animate-glow"></div>
+                
+                <div class="relative rounded-2xl bg-brand-950 border border-white/15 shadow-2xl overflow-hidden">
+                    <!-- Top Window Frame Header -->
+                    <div class="px-5 py-3.5 bg-gray-900/90 border-b border-white/10 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
+                            <span class="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+                            <span class="ml-4 text-xs font-mono text-gray-400 flex items-center gap-1.5">
+                                <i data-lucide="lock" class="w-3 h-3 text-emerald-400"></i> https://watchers.com/control
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs text-gray-400">
+                            <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono">LIVE WEBSOCKET</span>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Mockup Body (Sinkron dengan control.html) -->
+                    <div class="p-4 sm:p-6 lg:p-8 bg-gray-950 border border-gray-800 rounded-2xl shadow-2xl font-sans text-white">
+                        
+                        <!-- Miniatur Panel Tombol Kendali Utama -->
+                        <div class="flex flex-wrap gap-2.5 mb-6">
+                            <div class="flex-1 min-w-[100px] p-2.5 bg-gray-900 border border-gray-800 hover:border-emerald-600/50 rounded-xl flex flex-col items-center justify-center group transition">
+                                <div class="w-7 h-7 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-1 group-hover:scale-110 transition">
+                                    <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span class="text-[10px] font-semibold text-gray-300 group-hover:text-emerald-300">Pesan</span>
+                            </div>
+                            <div class="flex-1 min-w-[100px] p-2.5 bg-gray-900 border border-gray-800 hover:border-yellow-600/50 rounded-xl flex flex-col items-center justify-center group transition">
+                                <div class="w-7 h-7 rounded-lg bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 flex items-center justify-center mb-1 group-hover:scale-110 transition">
+                                    <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span class="text-[10px] font-semibold text-gray-300 group-hover:text-yellow-300">Kunci</span>
+                            </div>
+                            <div class="flex-1 min-w-[100px] p-2.5 bg-gray-900 border border-gray-800 hover:border-emerald-600/50 rounded-xl flex flex-col items-center justify-center group transition">
+                                <div class="w-7 h-7 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-1 group-hover:scale-110 transition">
+                                    <i data-lucide="unlock" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span class="text-[10px] font-semibold text-gray-300 group-hover:text-emerald-300">Buka</span>
+                            </div>
+                            <div class="flex-1 min-w-[100px] p-2.5 bg-gray-900 border border-gray-800 hover:border-sky-600/50 rounded-xl flex flex-col items-center justify-center group transition">
+                                <div class="w-7 h-7 rounded-lg bg-sky-600/20 border border-sky-500/30 text-sky-400 flex items-center justify-center mb-1 group-hover:scale-110 transition">
+                                    <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span class="text-[10px] font-semibold text-gray-300 group-hover:text-sky-300">Kunjungi</span>
+                            </div>
+                            <div class="flex-1 min-w-[100px] p-2.5 bg-gray-900 border border-gray-800 hover:border-rose-600/50 rounded-xl flex flex-col items-center justify-center group transition">
+                                <div class="w-7 h-7 rounded-lg bg-rose-600/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-1 group-hover:scale-110 transition">
+                                    <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span class="text-[10px] font-semibold text-gray-300 group-hover:text-rose-300">Matikan</span>
+                            </div>
+                        </div>
+
+                        <!-- Main Grid Content: Live Status + Kartu PC -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                            
+                            <!-- Left Panel: Live Status Panel -->
+                            <div id="live-status-panel" class="p-5 rounded-xl bg-white/[0.02] border border-white/10 space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold text-gray-300 uppercase tracking-wider">Status Ruangan</span>
+                                    <span class="bg-gray-900 border border-gray-800 text-indigo-400 font-mono text-[10px] rounded px-2 py-0.5">LAB-01</span>
+                                </div>
+
+                                <div class="flex flex-col gap-2.5">
+                                    <div class="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/20 flex justify-between items-center">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                            <span class="text-xs font-semibold text-gray-200"><span id="stat-online-pc">24</span> PC Terhubung</span>
+                                        </div>
+                                        <span class="text-[10px] font-mono text-emerald-400">Online</span>
+                                    </div>
+
+                                    <div class="p-3 rounded-lg bg-indigo-950/30 border border-indigo-500/20 flex justify-between items-center">
+                                        <div class="flex items-center gap-2.5">
+                                            <i data-lucide="activity" class="w-3.5 h-3.5 text-indigo-400"></i>
+                                            <span class="text-xs font-semibold text-gray-200">Respon Latensi</span>
+                                        </div>
+                                        <span class="text-[10px] font-mono text-indigo-400">&lt; 12ms</span>
+                                    </div>
+
+                                    <div class="w-full">
+                                        <div class="flex items-center gap-2.5 w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2.5 transition">
+                                            <i data-lucide="search" class="w-3.5 h-3.5 text-gray-500 shrink-0"></i>
+                                            <input type="text" placeholder="Cari Nama PC" readonly class="w-full bg-transparent border-none text-xs text-gray-100 placeholder-gray-500 focus:outline-none p-0">
+                                        </div>
+                                    </div>
+
+                                    <button class="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-900 border border-gray-800 text-gray-300 rounded-lg text-xs font-semibold">
+                                        <i data-lucide="check-circle-2" class="w-4 h-4 text-indigo-400"></i>
+                                        <span>Pilih Banyak PC</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Kartu PC 1: Status Aktif (Screen Streaming) -->
+                            <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 shadow-xl flex flex-col justify-between hover:border-gray-700 transition">
+                                <div>
+                                    <div class="flex justify-between items-center mb-3">
+                                        <div class="flex items-center gap-1.5 min-w-0 pr-2">
+                                            <i data-lucide="monitor" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+                                            <span class="hostname-text font-bold text-sm text-indigo-300 line-clamp-1 break-all" title="LAB-PC-01">
+                                                LAB-PC-01
+                                            </span>
+                                        </div>
+                                        <div class="p-1 rounded-full text-gray-400">
+                                            <i data-lucide="info" class="w-4 h-4"></i>
+                                        </div>
+                                    </div>
+
+                                    <div class="relative group mb-3 w-full h-40 bg-gray-950 rounded-lg overflow-hidden border border-gray-800 shadow-inner flex items-center justify-center">
+                                        <div class="absolute inset-0 bg-gradient-to-br from-indigo-950/60 to-gray-950 flex flex-col items-center justify-center p-3 text-center">
+                                            <i data-lucide="code-2" class="w-8 h-8 text-indigo-400 mb-1"></i>
+                                            <span class="text-[10px] font-mono text-gray-400">VS Code - main.py</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-2 mt-2">
+                                    <button class="w-full text-xs bg-gray-950 text-gray-300 border border-gray-800 py-2 px-3 rounded-lg flex items-center justify-between">
+                                        <div class="flex items-center gap-2 overflow-hidden mr-1">
+                                            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                                            <span class="truncate text-left">Aplikasi Aktif</span>
+                                        </div>
+                                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-500 shrink-0"></i>
+                                    </button>
+
+                                    <button class="w-full text-xs bg-indigo-600 text-white font-medium py-2 px-3 rounded-lg flex items-center justify-between shadow-md">
+                                        <span class="flex items-center gap-2">
+                                            <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                                            More Action
+                                        </span>
+                                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Kartu PC 2: Layar Terkunci -->
+                            <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 shadow-xl flex flex-col justify-between hover:border-gray-700 transition">
+                                <div>
+                                    <div class="flex justify-between items-center mb-3">
+                                        <div class="flex items-center gap-1.5 min-w-0 pr-2">
+                                            <i data-lucide="monitor" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+                                            <span class="hostname-text font-bold text-sm text-indigo-300 line-clamp-1 break-all" title="LAB-PC-02">
+                                                LAB-PC-02
+                                            </span>
+                                        </div>
+                                        <div class="p-1 rounded-full text-gray-400">
+                                            <i data-lucide="info" class="w-4 h-4"></i>
+                                        </div>
+                                    </div>
+
+                                    <div class="relative group mb-3 w-full h-40 bg-gray-950 rounded-lg overflow-hidden border border-gray-800 shadow-inner flex items-center justify-center">
+                                        <div class="lock-overlay absolute inset-0 bg-black/95 rounded-lg flex flex-col items-center justify-center gap-2 border border-yellow-600/40 z-30">
+                                            <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-yellow-400 shadow-lg">
+                                                <i data-lucide="lock" class="w-6 h-6"></i>
+                                            </div>
+                                            <span class="text-[10px] font-mono text-yellow-400">Layar Terkunci</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-2 mt-2">
+                                    <button class="w-full text-xs bg-gray-950 text-gray-300 border border-gray-800 py-2 px-3 rounded-lg flex items-center justify-between">
+                                        <div class="flex items-center gap-2 overflow-hidden mr-1">
+                                            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                                            <span class="truncate text-left">Aplikasi Aktif</span>
+                                        </div>
+                                        <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-500 shrink-0"></i>
+                                    </button>
+
+                                    <button class="w-full text-xs bg-indigo-600 text-white font-medium py-2 px-3 rounded-lg flex items-center justify-between shadow-md">
+                                        <span class="flex items-center gap-2">
+                                            <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                                            More Action
+                                        </span>
+                                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Bar / Social Proof -->
+            <div class="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 border-y border-white/10 py-10">
+                <div class="text-center">
+                    <p class="text-3xl font-extrabold text-white font-mono">99.9%</p>
+                    <p class="text-xs text-gray-400 mt-1 uppercase tracking-wider">Uptime Sistem Agent</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-3xl font-extrabold text-indigo-400 font-mono">&lt; 20ms</p>
+                    <p class="text-xs text-gray-400 mt-1 uppercase tracking-wider">Latensi Komando</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-3xl font-extrabold text-purple-400 font-mono">100%</p>
+                    <p class="text-xs text-gray-400 mt-1 uppercase tracking-wider">Audit Trail Log</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-3xl font-extrabold text-cyan-400 font-mono">Zero</p>
+                    <p class="text-xs text-gray-400 mt-1 uppercase tracking-wider">Ketergantungan Cloud Eksternal</p>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SECTION: MENGAPA MEMILIH KAMI (WHY US) -->
+    <section id="keunggulan" class="py-24 relative border-t border-white/5 bg-brand-950/60">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
+                <h2 class="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest">Keunggulan Utama</h2>
+                <p class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+                    Mengapa Perlu Menggunakan <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Watchers?</span>
+                </p>
+                <p class="text-gray-400 text-sm sm:text-base">
+                    Dibuat khusus untuk kebutuhan manajemen laboratorium komputer modern yang menuntut performa tinggi, privasi penuh, dan tanpa biaya langganan cloud yang mahal.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
+                
+    <!-- Card 1 -->
+    <div class="group relative p-6 sm:p-8 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-indigo-500/50 transition-all duration-300 hover:-translate-y-1">
+        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 sm:mb-6 group-hover:scale-110 group-hover:bg-indigo-500/20 transition-all">
+            <i data-lucide="server" class="w-6 h-6 text-indigo-400"></i>
+        </div>
+        <h3 class="text-lg sm:text-xl font-bold text-white mb-2.5">Self-Hosted di VPS Sendiri</h3>
+        <p class="text-xs sm:text-sm text-gray-400 leading-relaxed">
+            Kendali penuh data di VPS pribadi. Dilengkapi video tutorial instalasi langkah demi langkah yang jelas hingga siap pakai.
+        </p>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="group relative p-6 sm:p-8 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-purple-500/50 transition-all duration-300 hover:-translate-y-1">
+        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-5 sm:mb-6 group-hover:scale-110 group-hover:bg-purple-500/20 transition-all">
+            <i data-lucide="zap" class="w-6 h-6 text-purple-400"></i>
+        </div>
+        <h3 class="text-lg sm:text-xl font-bold text-white mb-2.5">Ringan & Realtime Fleksibel</h3>
+        <p class="text-xs sm:text-sm text-gray-400 leading-relaxed">
+            Agent Python efisien (RAM &lt; 35 MB). Interval stream *real-time* dapat diatur manual menyesuaikan kapasitas VPS Anda.
+        </p>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="group relative p-6 sm:p-8 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-cyan-500/50 transition-all duration-300 hover:-translate-y-1 sm:col-span-2 lg:col-span-1">
+        <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 sm:mb-6 group-hover:scale-110 group-hover:bg-cyan-500/20 transition-all">
+            <i data-lucide="shield-alert" class="w-6 h-6 text-cyan-400"></i>
+        </div>
+        <h3 class="text-lg sm:text-xl font-bold text-white mb-2.5">Audit Trail Akurat</h3>
+        <p class="text-xs sm:text-sm text-gray-400 leading-relaxed">
+            Setiap eksekusi perintah (*lock*, *shutdown*, dll.) tersimpan permanen dan otomatis untuk kemudahan evaluasi praktikum.
+        </p>
+    </div>
+
+</div>
+
+        </div>
+    </section>
+
+    <!-- SECTION: FITUR UNGGULAN (FEATURES DEEP-DIVE) -->
+    <section id="solusi" class="py-24 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
+                <h2 class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">Kemampuan Aplikasi</h2>
+                <p class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+                    Ekosistem Kontrol Komprehensif
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Feature Box 1 -->
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-indigo-500/40 transition">
+                    <i data-lucide="lock" class="w-8 h-8 text-indigo-400 mb-4"></i>
+                    <h4 class="text-base font-bold text-white mb-2">Remote Screen Lock</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">Kunci layar PC klien secara instan saat sesi instruksi atau ujian berlangsung agar fokus siswa terjaga.</p>
+                </div>
+
+                <!-- Feature Box 2 -->
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-purple-500/40 transition">
+                    <i data-lucide="power" class="w-8 h-8 text-rose-400 mb-4"></i>
+                    <h4 class="text-base font-bold text-white mb-2">Mass Shutdown / Restart</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">Matikan atau nyalakan ulang seluruh PC lab dalam satu klik tanpa perlu mendatangi meja satu per satu.</p>
+                </div>
+
+                <!-- Feature Box 3 -->
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-emerald-500/40 transition">
+                    <i data-lucide="globe" class="w-8 h-8 text-emerald-400 mb-4"></i>
+                    <h4 class="text-base font-bold text-white mb-2">Broadcast URL</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">Perintahkan seluruh browser klien untuk membuka tautan materi atau ujian secara serentak.</p>
+                </div>
+
+                <!-- Feature Box 4: Pemisahan Ruangan Lab -->
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-emerald-500/40 transition">
+                    <i data-lucide="door-open" class="w-8 h-8 text-emerald-400 mb-4"></i>
+                    <h4 class="text-base font-bold text-white mb-2">Pemisahan Ruangan Lab</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">Pengelompokan PC per ruangan (LAB-01, LAB-02) untuk mempermudah pemantauan dan kontrol tiap lab.</p>                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SECTION: PRICING & LISENSI -->
+    <section id="packages" class="py-24 relative border-t border-white/5 bg-brand-950/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
+                <h2 class="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest">Investasi Efisien</h2>
+                <p class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+                    Pilihan Paket & Lisensi
+                </p>
+                <p class="text-gray-400 text-sm sm:text-base">
+                    Pilih paket lisensi yang paling sesuai dengan skala laboratorium komputer Anda.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+                
+                <!-- Plan 1: Free Edition -->
+                <div class="p-8 rounded-3xl bg-white/[0.02] border border-white/10 flex flex-col justify-between hover:border-white/20 transition">
+                    <div>
+                        <span class="text-xs font-mono font-semibold text-emerald-400 uppercase tracking-wider">Komunitas</span>
+                        <h3 class="text-2xl font-bold text-white mt-1">Free Edition</h3>
+                        <p class="text-xs text-gray-400 mt-2">Cocok untuk sekolah atau lab dengan kebutuhan monitoring dasar.</p>
+                        
+                        <div class="my-6">
+                            <span class="text-4xl font-extrabold text-white font-mono">Gratis</span>
+                            <span class="text-xs text-gray-400 block mt-1">Selamanya / Fitur Dasar</span>
+                        </div>
+
+                        <ul class="space-y-3 text-xs text-gray-300 my-8">
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Fitur Mass URL Broadcast</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Fitur Kunci Layar & Shutdown PC</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Status Ram & CPU Realtime</span>
+                            </li>
+                           <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Pengaturan Performa Sesuai Spesifikasi Server</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                                <span>Monitoring Live Screen Realtime</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Tombol Download Aktif -->
+                    <a href="#download" class="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs text-center transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Download Gratis
+                    </a>
+                </div>
+
+                <!-- Plan 2: Pro Edition (Disabled Download) -->
+                <div class="relative p-8 rounded-3xl bg-gradient-to-b from-indigo-950/80 to-brand-950 border-2 border-indigo-500 shadow-2xl shadow-indigo-600/20 flex flex-col justify-between scale-105 z-10">
+                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-md">
+                        Segera Hadir
+                    </div>
+
+                    <div>
+                        <span class="text-xs font-mono font-semibold text-indigo-300 uppercase tracking-wider">Profesional</span>
+                        <h3 class="text-2xl font-bold text-white mt-1">Pro Edition</h3>
+                        <p class="text-xs text-gray-400 mt-2">Untuk sekolah atau kampus yang butuh analisis dan kontrol mendalam.</p>
+                        
+                        <div class="my-6">
+                            <span class="text-4xl font-extrabold text-white font-mono">Rp 3.500.000</span>
+                            <span class="text-xs text-indigo-300 block mt-1">Lisensi Seumur Hidup</span>
+                        </div>
+
+                        <ul class="space-y-3 text-xs text-gray-200 my-8">
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"></i>
+                                <span>Semua Paket Free</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"></i>
+                                <span>Sistem Chatting Online</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"></i>
+                                <span>List Aplikasi Yang terinstall Setiap PC</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"></i>
+                                <span>Log Activity Terperinci & Tercatat</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-indigo-400"></i>
+                                <span>Akses Fitur Request Khusus</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Tombol Disabled (Tidak bisa didownload) -->
+                    <button disabled class="w-full py-3.5 px-4 rounded-xl bg-gray-800 text-gray-500 font-bold text-xs text-center cursor-not-allowed border border-gray-700/50 flex items-center justify-center gap-2">
+                        <i data-lucide="lock" class="w-4 h-4 text-gray-500"></i>
+                        Belum Tersedia
+                    </button>
+                </div>
+
+                <!-- Plan 3: Enterprise Edition (Contact Sales) -->
+                <div class="p-8 rounded-3xl bg-white/[0.02] border border-white/10 flex flex-col justify-between hover:border-white/20 transition">
+                    <div>
+                        <span class="text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider">Kustom & Scalable</span>
+                        <h3 class="text-2xl font-bold text-white mt-1">Enterprise Edition</h3>
+                        <p class="text-xs text-gray-400 mt-2">Solusi penuh kustomisasi untuk instansi skala besar dan tim IT internal.</p>
+                        
+                        <div class="my-6">
+                            <span class="text-3xl font-extrabold text-white font-mono">Custom Quote</span>
+                            <span class="text-xs text-gray-400 block mt-1">Penawaran Sesuai Spesifikasi</span>
+                        </div>
+
+                        <ul class="space-y-3 text-xs text-gray-300 my-8">
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-purple-400"></i>
+                                <span>Semua Paket Pro</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-purple-400"></i>
+                                <span>Kustomisasi Sistem Internal Sesuai Kebutuhan</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-purple-400"></i>
+                                <span>Full Source Code & Re-branding Instansi</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <i data-lucide="check" class="w-4 h-4 text-purple-400"></i>
+                                <span>Dukungan Setup & Konsultasi Dedicated</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Tombol Disabled (Tidak bisa didownload) -->
+                    <button disabled class="w-full py-3.5 px-4 rounded-xl bg-gray-800 text-gray-500 font-bold text-xs text-center cursor-not-allowed border border-gray-700/50 flex items-center justify-center gap-2">
+                        <i data-lucide="lock" class="w-4 h-4 text-gray-500"></i>
+                        Belum Tersedia
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SECTION: FOOTER LENGKAP (TAHAP AKHIR) -->
+    <footer class="py-12 border-t border-white/10 bg-brand-950 text-gray-400 text-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+                </div>
+                <span class="font-bold text-white text-sm">WATCHERS CONTROL CENTER</span>
+            </div>
+            
+            <p>&copy; <span id="year-current"></span> Watchers Security. Hak Cipta Dilindungi Undang-Undang.</p>
+            
+            <div class="flex items-center gap-6 text-gray-400">
+                <a href="/login" class="hover:text-white transition">Portal Login</a>
+                <a href="#solusi" class="hover:text-white transition">Fitur</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

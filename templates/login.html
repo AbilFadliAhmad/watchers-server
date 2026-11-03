@@ -1,71 +1,115 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Watchers Control Center</title>
+    <!-- Tailwind CSS & Lucide Icons CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            900: '#312e81',
+                            950: '#090d16',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .bg-grid-pattern {
+            background-image: radial-gradient(rgba(99, 102, 241, 0.18) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
 </head>
-<body class="bg-gray-950 text-white min-h-screen flex items-center justify-center p-4 font-sans">
+<body class="bg-brand-950 text-gray-100 font-sans antialiased selection:bg-indigo-500 selection:text-white min-h-screen flex flex-col justify-between p-4 sm:p-6 bg-grid-pattern relative overflow-x-hidden">
+    <!-- Main Container Card -->
+    <main class="w-full max-w-md mx-auto my-auto relative z-10 py-6">
+        <div class="relative bg-gray-900/90 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-3">
 
-    <div class="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
-
-        <!-- Header Modal/Form -->
-        <div class="text-center mb-6">
-            <div class="w-12 h-12 bg-indigo-950 border border-indigo-800/50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-indigo-400">
-                <i data-lucide="shield-check" class="w-6 h-6"></i>
-            </div>
-            <h2 class="text-xl font-bold text-gray-100">Portal Masuk System</h2>
-            <p class="text-xs text-gray-400 mt-1">Gunakan akun Dosen, Direktur, atau Developer</p>
-        </div>
-
-        <!-- Alert Error Message -->
-        <div id="alert-error" class="hidden mb-4 p-3 bg-rose-950/80 border border-rose-800 text-rose-300 text-xs rounded-xl flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
-            <span id="alert-text">Username atau sandi salah.</span>
-        </div>
-
-        <!-- Form Login -->
-        <form id="login-form" onsubmit="handleLogin(event)" class="space-y-2">
-            <!-- Input Username -->
-            <div>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                        <i data-lucide="user" class="w-4 h-4"></i>
-                    </span>
-                    <input type="text" id="username" required autocomplete="username"
-                        class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 pl-9 pr-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition"
-                        placeholder="Masukkan username">
+            <!-- Header Modal/Form -->
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 bg-indigo-950/80 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto text-indigo-400 shadow-inner">
+                    <i data-lucide="lock" class="w-6 h-6"></i>
                 </div>
+                <h2 class="text-xl font-bold text-white tracking-tight">Portal Masuk Sistem</h2>
+                <p class="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
+                    Masukkan kredensial Anda untuk mengakses Watchers Control Center.
+                </p>
             </div>
 
-            <!-- Input Password dengan Toggle Visibility -->
-            <div>
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                        <i data-lucide="key-round" class="w-4 h-4"></i>
-                    </span>
-                    <input type="password" id="password" required autocomplete="current-password"
-                        class="w-full bg-gray-950 border border-gray-800 rounded-xl py-2.5 pl-9 pr-10 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition"
-                        placeholder="Masukkan sandi">
+            <!-- Alert Error Message -->
+            <div id="alert-error" class="hidden p-3 bg-rose-950/80 border border-rose-800/80 text-rose-300 text-xs rounded-xl flex items-center gap-2.5 animate-in fade-in duration-200">
+                <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-400"></i>
+                <span id="alert-text">Username atau sandi salah.</span>
+            </div>
 
-                    <!-- Tombol Toggle Sandi -->
-                    <button type="button" onclick="togglePasswordVisibility()"
-                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-300 focus:outline-none">
-                        <i id="eye-icon" data-lucide="eye" class="w-4 h-4"></i>
-                    </button>
+            <!-- Form Login -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-3">
+                
+                <!-- Input Username -->
+                <div class="space-y-1.5">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-500">
+                            <i data-lucide="user" class="w-4 h-4"></i>
+                        </span>
+                        <input type="text" id="username" required autocomplete="username"
+                            class="w-full bg-gray-950/80 border border-gray-800 rounded-xl py-2.5 pl-10 pr-3 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition shadow-inner"
+                            placeholder="Masukkan username Anda">
+                    </div>
                 </div>
+
+                <!-- Input Password dengan Toggle Visibility -->
+                <div class="space-y-1">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-500">
+                            <i data-lucide="key-round" class="w-4 h-4"></i>
+                        </span>
+                        <input type="password" id="password" required autocomplete="current-password"
+                            class="w-full bg-gray-950/80 border border-gray-800 rounded-xl py-2.5 pl-10 pr-10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition shadow-inner"
+                            placeholder="Masukkan sandi Anda">
+
+                        <!-- Tombol Toggle Sandi -->
+                        <button type="button" onclick="togglePasswordVisibility()"
+                            class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-gray-500 hover:text-gray-300 focus:outline-none transition-colors">
+                            <i id="eye-icon" data-lucide="eye" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="btn-submit"
+                    class="w-full mt-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/50">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    <span>Masuk Sekarang</span>
+                </button>
+            </form>
+
+            <!-- Opsi Alternatif Kembali ke Beranda (Tombol Bawah) -->
+            <div class="pt-2 border-t border-white/5 text-center">
+                <a href="/" class="w-full py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 text-gray-400 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition">
+                    <i data-lucide="home" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    <span>Kembali ke Halaman Beranda</span>
+                </a>
             </div>
 
-            <!-- Submit Button -->
-            <button type="submit" id="btn-submit"
-                class="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-600/20">
-                <i data-lucide="log-in" class="w-4 h-4"></i>
-                <span>Masuk Sekarang</span>
-            </button>
-        </form>
-    </div>
+        </div>
+    </main>
+
+    <!-- Footer Ringkas -->
+    <footer class="w-full max-w-md mx-auto text-center py-2 z-10">
+        <p class="text-[11px] text-gray-500">&copy; Watchers Control Center. All rights reserved.</p>
+    </footer>
 
     <script>
         lucide.createIcons();
@@ -112,10 +156,9 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Redirect ke dashboard utama setelah login sukses
                     window.location.href = '/';
                 } else {
-                    alertText.innerText = data.detail || 'Terjadi kesalahan login.';
+                    alertText.innerText = data.detail || 'Username atau sandi tidak cocok.';
                     alertBox.classList.remove('hidden');
                 }
             } catch (error) {
