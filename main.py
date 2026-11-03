@@ -411,7 +411,7 @@ async def get_logs_page(
             name="logs.html",
             context={
                 "user": user,
-                "violations": data["violations"],
+                "violations_summary": data["violations_summary"],
                 "logs": data["logs"],
                 "selected_action": action or "",
                 "selected_time_range": selected_time

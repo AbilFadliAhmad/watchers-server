@@ -112,18 +112,44 @@ def record_activity_log(client_id: str, action_type: str, details: str, executed
         print(f"Gagal mencatat log aktivitas/pelanggaran: {e}")
 
 # --- HELPER: MENGAMBIL DATA LOGS ---
+def get_violation_advice(total_count: int) -> dict:
+    """Mengembalikan status level, kata-kata saran, dan rekomendasi aksi berdasarkan jumlah pelanggaran."""
+    if total_count <= 2:
+        return {
+            "level": "Ringan",
+            "badge_color": "bg-yellow-950 text-yellow-400 border-yellow-800/80",
+            "icon": "alert-circle",
+            "advice": "Siswa terdeteksi melakukan pelanggaran minor (1–2 kali).",
+            "recommendation": "Berikan teguran lisan atau kirim pesan pengingat langsung via sistem."
+        }
+    elif 3 <= total_count <= 5:
+        return {
+            "level": "Sedang",
+            "badge_color": "bg-amber-950 text-amber-400 border-amber-800/80",
+            "icon": "alert-triangle",
+            "advice": "Siswa berulang kali mengabaikan aturan lab (3–5 kali).",
+            "recommendation": "Lakukan Kunci Layar (Lock Screen) sementara selama 5-10 menit & panggil siswa ke meja instruktur."
+        }
+    else:
+        return {
+            "level": "Berat / Kritis",
+            "badge_color": "bg-rose-950 text-rose-400 border-rose-800/80 animate-pulse",
+            "icon": "shield-alert",
+            "advice": "Tingkat pelanggaran sangat tinggi (>5 kali). Berpotensi mengganggu ketertiban praktikum.",
+            "recommendation": "Kunci Layar selama 1 harian / Skorsing sesi praktikum & laporkan audit log ini ke Direktur/Staf."
+        }
+    
 async def get_logs_data(
     current_user: dict, 
     action: Optional[str] = None, 
     time_range: str = "1w", 
+    limit: int = 100
 ) -> dict:
     """
-    Mengambil data pelanggaran (user_violations) dan log aktivitas (activity_logs) dari database.
-    Filter otomatis berdasarkan room pengguna, jenis aksi, dan kurun waktu.
+    Mengambil data pelanggaran (user_violations) yang dikelompokkan per PC (diurutkan terbanyak)
+    dan data log aktivitas umum (activity_logs) dari database.
     """
-
     from main import TIME_RANGE_MAP
-    
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -133,7 +159,7 @@ async def get_logs_data(
     time_modifier = TIME_RANGE_MAP.get(time_range, "-7 days")
 
     # -------------------------------------------------------------
-    # 1. Query Data Pelanggaran (user_violations)
+    # 1. Query & Grouping Data Pelanggaran (user_violations)
     # -------------------------------------------------------------
     v_where = ["v.created_at >= datetime('now', ?)"]
     v_params = [time_modifier]
@@ -164,7 +190,32 @@ async def get_logs_data(
         ORDER BY v.id DESC
     """
     cursor.execute(v_query, tuple(v_params))
-    violations = [dict(row) for row in cursor.fetchall()]
+    raw_violations = [dict(row) for row in cursor.fetchall()]
+
+    # Pengelompokan Data Pelanggaran per PC / Client ID
+    grouped_violations = {}
+    for item in raw_violations:
+        cid = item["client_id"] 
+        if cid not in grouped_violations:
+            grouped_violations[cid] = {
+                "client_id": cid,
+                "hostname": item["hostname"],
+                "total_violations": 0,
+                "latest_at": item["created_at"],
+                "records": []
+            }
+        grouped_violations[cid]["total_violations"] += 1
+        grouped_violations[cid]["records"].append(item)
+
+    # Urutkan dari PC dengan pelanggaran terbanyak (DESC)
+    violations_summary = sorted(
+        grouped_violations.values(), 
+        key=lambda x: x["total_violations"], 
+        reverse=True
+    )
+
+    for item in violations_summary:
+        item["advice_info"] = get_violation_advice(item["total_violations"])
 
     # -------------------------------------------------------------
     # 2. Query Data Log Aktivitas Umum (activity_logs)
@@ -196,18 +247,18 @@ async def get_logs_data(
         LEFT JOIN users u ON l.executed_by = u.id
         {l_sql_where}
         ORDER BY l.id DESC
+        LIMIT ?
     """
-    cursor.execute(l_query, tuple(l_params))
+    cursor.execute(l_query, tuple(l_params + [limit]))
     logs = [dict(row) for row in cursor.fetchall()]
 
     conn.close()
 
     return {
         "status": "success",
-        "violations": violations,
+        "violations_summary": violations_summary,
         "logs": logs
     }
-
 # --- HELPER : GET DATA CONFIG STREAMING ---
 def fetch_stream_config_from_db():
     """Mengambil konfigurasi dari SQLite dan menyusunnya ke dict RAM."""
