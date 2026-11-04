@@ -242,7 +242,7 @@
                         </span>
                     </div>
                     <div class="flex items-center gap-1.5 font-mono">
-                        <span id="stat-online-pc" class="text-xs font-black text-emerald-400">0</span>
+                        <span class="stat-online-pc text-xs font-black text-emerald-400">0</span>
                         <span class="text-[10px] text-emerald-500/90 uppercase font-bold tracking-wider">Online</span>
                     </div>
                 </div>
@@ -984,11 +984,11 @@
         // Fungsi untuk membuat/memperbarui Live Status Panel di dalam #student-grid
         function ensureLiveStatusPanel() {
             const count = connectedPcs.size;
-            console.log(rooms);
 
-            // Perbarui jumlah PC yang terhubung di panel status
-            const statElem = document.getElementById("stat-online-pc");
-            if (statElem) statElem.innerText = count;
+            // Perbarui seluruh elemen status online (baik mobile maupun desktop)
+            document.querySelectorAll(".stat-online-pc").forEach(el => {
+                el.innerText = count;
+            });
 
             if (window.innerWidth < 1024) return;
 
@@ -1033,7 +1033,7 @@
                         <div class="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/20 flex justify-between items-center">
                             <div class="flex items-center gap-2.5">
                                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                <span class="text-xs font-semibold text-gray-200"><span id="stat-online-pc">${count}</span> PC Terhubung</span>
+                                <span class="text-xs font-semibold text-gray-200"><span class="stat-online-pc">${count}</span> PC Terhubung</span>
                             </div>
                             <span class="text-[10px] font-mono text-emerald-400">Online</span>
                         </div>

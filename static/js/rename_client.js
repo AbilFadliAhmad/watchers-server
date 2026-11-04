@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <!-- Input Nama -->
                     <div>
                         <label class="text-xs font-semibold text-gray-300 block mb-1.5">Nama Perangkat Baru:</label>
-                        <input type="text" id="rename-hostname-input" placeholder="Contoh: LAB1-PC05" class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-mono">
+                        <input onkeydown="if(event.key === 'Enter') submitRenamePC()" type="text" id="rename-hostname-input" placeholder="Contoh: LAB1-PC05" class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-mono">
                     </div>
 
                     <!-- Kotak Petunjuk / Panduan Format untuk Orang Awam -->
@@ -99,11 +99,6 @@ function openRenameModal(deviceId, currentHostname) {
             inputField.value = document.querySelector(`#pc-${deviceId} .hostname-text`).textContent.trim() || currentHostname || '';
             inputField.focus();
             inputField.select();
-            inputField.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    submitRenamePC();
-                }
-            });
         }
     }, 50); 
 }

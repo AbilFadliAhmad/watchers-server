@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                                 <i data-lucide="link" class="w-4 h-4"></i>
                             </span>
-                            <input type="text" id="input-target-url" placeholder="https://google.com atau classroom.google.com"
+                            <input onkeydown="if(event.key === 'Enter') submitUrlCommand()" type="text" id="input-target-url" placeholder="https://google.com atau classroom.google.com"
                                 class="w-full pl-9 pr-3 py-2.5 bg-gray-950 border border-gray-800 focus:border-sky-500 rounded-xl text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
                         </div>
                         <p class="text-[10px] text-gray-500 mt-1">Sistem akan otomatis membuka browser default pada PC client.</p>
@@ -77,11 +77,6 @@ function openUrlModal(sid = 'all', hostname = 'Semua PC') {
     label.innerText = `Target: ${hostname}`;
     input.value = ''; // Reset input
     input.focus(); // Fokus ke input saat modal dibuka
-    input.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter') {
-            submitUrlCommand();
-        }
-    });
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');

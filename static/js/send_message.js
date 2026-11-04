@@ -99,7 +99,8 @@ function submitSendMessage() {
     const targetSid = activeSid || 'all';
 
     if (text) {
-        sendDirectCommand(targetSid, 'message', { 
+        sendDirectCommand(targetSid, 'message', {
+            text: text, 
             log_details: text,
             is_warning: isWarning ? true : false
         });
