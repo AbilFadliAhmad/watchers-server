@@ -34,12 +34,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     <div>
                         <label class="text-xs font-semibold text-gray-300 block mb-1.5">Pesan Tampilan Kunci:</label>
-                        <input type="text" id="lock-message-input" value="DIKUNCI OLEH GURU" placeholder="Masukkan pesan kunci..." class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-yellow-500">
+                        <input type="text" onkeydown="if(event.key === 'Enter') submitLockCommand();" id="lock-message-input" value="DIKUNCI OLEH GURU" placeholder="Masukkan pesan kunci..." class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-yellow-500">
                     </div>
 
                     <div>
                         <label class="text-xs font-semibold text-gray-300 block mb-1.5">Kata Sandi Pembuka (Opsional):</label>
-                        <input type="password" id="lock-password-input" placeholder="Kosongkan jika tanpa sandi" class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-yellow-500">
+                        <input type="password" onkeydown="if(event.key === 'Enter') submitLockCommand();" id="lock-password-input" placeholder="Kosongkan jika tanpa sandi" class="w-full bg-gray-950 border border-gray-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-yellow-500">
                         <p class="text-[10px] text-gray-500 mt-1">Siswa dapat membuka kunci fisik PC sendiri jika memasukkan sandi ini.</p>
                     </div>
                 </div>
@@ -86,11 +86,6 @@ function openLockModal(targetSid) {
         const passwordInput = document.getElementById('lock-password-input');
         if (passwordInput) {
             passwordInput.focus();
-            passwordInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    submitLockCommand();
-                }
-            });
         }
     }, 50);
 }

@@ -30,15 +30,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 <!-- Form Input -->
                 <div class="space-y-4">
                     <div>
-                        <label for="input-target-url" class="block text-xs font-semibold text-gray-300 mb-1.5">Alamat Website (URL)</label>
+                        <label for="input-target-url" class="block text-xs font-semibold text-gray-300 mb-1.5">Alamat Website / IP Address</label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                                 <i data-lucide="link" class="w-4 h-4"></i>
                             </span>
-                            <input onkeydown="if(event.key === 'Enter') submitUrlCommand()" type="text" id="input-target-url" placeholder="https://google.com atau classroom.google.com"
+                            <input onkeydown="if(event.key === 'Enter') submitUrlCommand()" type="text" id="input-target-url" placeholder="google.com atau 192.168.1.1"
                                 class="w-full pl-9 pr-3 py-2.5 bg-gray-950 border border-gray-800 focus:border-sky-500 rounded-xl text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
                         </div>
-                        <p class="text-[10px] text-gray-500 mt-1">Sistem akan otomatis membuka browser default pada PC client.</p>
+                        <p class="text-[10px] text-gray-500 mt-1">Dapat berupa URL domain (google.com) atau IP Lokal (192.168.1.1).</p>
                     </div>
 
                     <!-- Tombol Aksi -->
@@ -55,15 +55,58 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
         `;
 
-        // 4. Tambahkan node elemen ke dokumen HTML menggunakan appendChild
+        // 4. Tambahkan node elemen ke dokumen HTML
         document.body.appendChild(modalElement);
 
-        // Render ulang ikon Lucide jika digunakan
         if (typeof lucide !== "undefined") {
             lucide.createIcons();
         }
     }
 });
+
+// Fungsi Validator URL & IP Address
+function parseAndValidateUrl(inputStr) {
+    if (!inputStr) return { valid: false };
+
+    let urlToCheck = inputStr.trim();
+    const isIpPattern = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::\d+)?(?:[/?#].*)?$/;
+    const hasProtocol = /^https?:\/\//i.test(urlToCheck);
+
+    // Jika belum ada http:// atau https://
+    if (!hasProtocol) {
+        // Jika berupa IP Address, gunakan default http://, selain itu gunakan https://
+        urlToCheck = (isIpPattern.test(urlToCheck) ? 'http://' : 'https://') + urlToCheck;
+    }
+
+    try {
+        const parsed = new URL(urlToCheck);
+        const hostname = parsed.hostname;
+
+        // 1. Validasi IP Address (IPv4: 4 oktek 0-255)
+        const ipv4Regex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+        if (ipv4Regex.test(hostname)) {
+            const octets = hostname.split('.').map(Number);
+            if (octets.every(o => o >= 0 && o <= 255)) {
+                return { valid: true, formattedUrl: urlToCheck };
+            }
+        }
+
+        // 2. Validasi Localhost
+        if (hostname === 'localhost') {
+            return { valid: true, formattedUrl: urlToCheck };
+        }
+
+        // 3. Validasi Domain Publik (Harus ada titik '.' dan TLD minimal 2 karakter, contoh: google.com)
+        const domainRegex = /^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+        if (domainRegex.test(hostname)) {
+            return { valid: true, formattedUrl: urlToCheck };
+        }
+
+        return { valid: false };
+    } catch (e) {
+        return { valid: false };
+    }
+}
 
 // Membuka Modal Kunjungi URL
 function openUrlModal(sid = 'all', hostname = 'Semua PC') {
@@ -75,13 +118,11 @@ function openUrlModal(sid = 'all', hostname = 'Semua PC') {
     const input = document.getElementById('input-target-url');
 
     label.innerText = `Target: ${hostname}`;
-    input.value = ''; // Reset input
-    input.focus(); // Fokus ke input saat modal dibuka
+    input.value = '';
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
-    // Auto focus ke input setelah modal muncul
     setTimeout(() => input.focus(), 100);
 }
 
@@ -96,30 +137,34 @@ function closeUrlModal() {
 // Mengirimkan Perintah open_url
 function submitUrlCommand() {
     const input = document.getElementById('input-target-url');
-    let rawUrl = input.value.trim();
+    const rawInput = input.value.trim();
     const targetSid = activeSid || 'all';
 
-    if (!rawUrl) {
-        alert("Silakan masukkan URL website terlebih dahulu!");
+    if (!rawInput) {
+        alert("Silakan masukkan URL website atau IP Address terlebih dahulu!");
         return;
     }
 
-    // Otomatis tambahkan 'https://' jika pengguna hanya mengetikkan domain biasa (misal: google.com)
-    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
-        rawUrl = 'https://' + rawUrl;
+    // Validasi URL / IP Address
+    const validation = parseAndValidateUrl(rawInput);
+    if (!validation.valid) {
+        showToast("Format URL atau IP Address tidak valid! Contoh: google.com atau 192.168.1.1", "error");
+        input.focus();
+        return;
     }
+    const finalUrl = validation.formattedUrl;
 
     // Kirim perintah SocketIO
     sendDirectCommand(targetSid, 'open_url', { 
-        url: rawUrl, 
-        log_details: `Perintah buka URL dikirim melalui panel manajemen. URL: "${rawUrl}"`, 
+        url: finalUrl, 
+        log_details: `Perintah buka URL dikirim melalui panel manajemen. URL: "${finalUrl}"`, 
         is_warning: false 
     });
 
     // Notifikasi Toast
     if (typeof Toastify === 'function') {
         Toastify({
-            text: `🌐 Membuka ${rawUrl} di client...`,
+            text: `🌐 Membuka ${finalUrl} di client...`,
             duration: 3000,
             gravity: "top",
             position: "right",

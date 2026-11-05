@@ -38,28 +38,35 @@ function toggleAgentSelection(sid) {
 }
 
 // 1. Fungsi Utama Evaluasi Kombinasi Filter (Room + Hostname)
+// 1. Fungsi Utama Evaluasi Kombinasi Filter (Room + Hostname)
 function applyCardFilters() {
     const allCards = document.querySelectorAll('#student-grid > [id^="pc-"]');
 
+    // Pastikan keyword pencarian sudah di-lowercase dan di-trim agar konsisten
+    const searchKeyword = (activeSearchKeyword || '').toLowerCase().trim();
+    const currentRoom = (activeRoom || '').toLowerCase().trim();
+
     allCards.forEach(card => {
         const hostnameEl = card.querySelector('.hostname-text');
-        const hostname = hostnameEl ? hostnameEl.innerText.toLowerCase() : '';
-        const cardRoom = card.getAttribute('data-room-id') || card.getAttribute('data-room') || '';
+        // Gunakan .trim() untuk membuang spasi tak terlihat yang merusak logika perbandingan
+        const hostname = hostnameEl ? hostnameEl.innerText.toLowerCase().split('-')[0].trim() : '';
 
         // Evaluasi Kriteria 1: Room Match
-        const matchesRoom = !activeRoom || activeRoom === 'all' || cardRoom.toString() === activeRoom.toString();
+        const matchesRoom = !currentRoom || currentRoom === 'all' || hostname === currentRoom;
 
         // Evaluasi Kriteria 2: Hostname Match Substring
-        const matchesSearch = activeSearchKeyword === '' || hostname.includes(activeSearchKeyword);
+        const matchesSearch = searchKeyword === '' || hostname.includes(searchKeyword);
 
         // Kartu hanya tampil jika KEDUA syarat terpenuhi
         if (matchesRoom && matchesSearch) {
-            card.classList.remove('hidden');
+            // Menggunakan 'hidden' sesuai koreksi Anda, dan hapus 'invisible' jika sebelumnya pernah terpakai
+            card.classList.remove('hidden'); 
         } else {
             card.classList.add('hidden');
         }
     });
 }
+
 
 // 2. Handler Input Search Hostname
 function filterPcsByHostname(query) {
