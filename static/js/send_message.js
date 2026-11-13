@@ -41,7 +41,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     <!-- Input Pesan -->
                     <div class="space-y-1.5">
                         <label class="text-xs text-gray-400 font-medium">Pesan Pengingat / Instruksi:</label>
-                        <textarea id="msg-input" rows="3" class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-indigo-500 transition resize-none" placeholder="Ketik pesan di sini..."></textarea>
+                        <textarea id="msg-input" rows="3" 
+                            onkeydown="if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); submitSendMessage(); }" 
+                            class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-indigo-500 transition resize-none" 
+                            placeholder="Ketik pesan di sini..."></textarea>
+                        <p class="text-[10px] text-gray-500 flex items-center justify-end gap-1 pt-0.5">
+                            Tekan <kbd class="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-[9px] text-gray-300 font-mono">Ctrl</kbd> + <kbd class="px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded text-[9px] text-gray-300 font-mono">Enter</kbd> untuk mengirim pesan langsung.
+                        </p>
                     </div>
                 </div>
 

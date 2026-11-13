@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <i data-lucide="shield" class="w-5 h-5"></i>
                         </div>
                         <div>
-                            <h3 class="text-sm font-bold text-gray-100">Manajemen Role & Jabatan</h3>
+                            <h3 class="text-sm font-bold text-gray-100">Management Departments</h3>
                             <p class="text-[11px] text-gray-400">Tambah dan lihat daftar tingkatan role pengguna</p>
                         </div>
                     </div>
@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <!-- Form Tambah Role Baru -->
                 <form onsubmit="submitCreateRole(event)" class="mt-4 space-y-3">
                     <div>
-                        <label for="role-name-input" class="block text-xs font-semibold text-gray-300 mb-1">Nama Role Baru</label>
+                        <label for="role-name-input" class="block text-xs font-semibold text-gray-300 mb-1">Jabatan Baru</label>
                         <div class="flex gap-2">
                             <input type="text" id="role-name-input" required placeholder="Contoh: asisten_lab"
                                 class="flex-1 bg-gray-950 border border-gray-800 focus:border-purple-500 rounded-xl px-3.5 py-2 text-xs text-gray-100 placeholder-gray-600 focus:outline-none transition">
@@ -39,11 +39,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 <!-- List Role Terdaftar -->
                 <div class="mt-4 pt-3 border-t border-gray-800 flex-1 overflow-hidden flex flex-col">
                     <div class="flex justify-between items-center mb-2">
-                        <p class="text-xs font-semibold text-gray-400">Daftar Role Terdaftar</p>
-                        <span id="role-count-badge" class="text-[10px] font-mono text-purple-400 bg-purple-950/60 border border-purple-800/50 px-2 py-0.5 rounded-full">0 Role</span>
+                        <p class="text-xs font-semibold text-gray-400">Daftar Jabatan</p>
+                        <span id="role-count-badge" class="text-[10px] font-mono text-purple-400 bg-purple-950/60 border border-purple-800/50 px-2 py-0.5 rounded-full">0 Departments</span>
                     </div>
                     <div id="role-list-container" class="overflow-y-auto space-y-2 pr-1 custom-scrollbar flex-1">
-                        <p class="text-xs text-gray-500 text-center py-4">Memuat data role...</p>
+                        <p class="text-xs text-gray-500 text-center py-4">Memuat data jabatan...</p>
                     </div>
                 </div>
             </div>
@@ -79,7 +79,7 @@ function closeRoleModal() {
 function loadRolesFromGlobal() {
     const badge = document.getElementById("role-count-badge");
 
-    if (badge) badge.innerText = `${roles.length} Role`;
+    if (badge) badge.innerText = `${roles.length} Jabatan`;
     renderRoleList();
 }
 
@@ -104,8 +104,8 @@ function renderRoleList() {
                 <div>
                     ${
                         isAdmin
-                        ? `<span class="text-[10px] font-mono text-gray-500 px-2 py-0.5 bg-gray-900 border border-gray-800 rounded-md">Bawaan Sistem</span>`
-                        : `<button onclick="deleteRole('${roleName}')" class="p-1 text-gray-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition" title="Hapus Role">
+                        ? `<span class="text-[10px] font-mono text-gray-500 px-2 bg-gray-900 border border-gray-800 rounded-md">SYSTEM</span>`
+                        : `<button onclick="deleteRole('${roleName}')" class="p-1 text-gray-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition" title="Hapus Jabatan">
                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                            </button>`
                     }

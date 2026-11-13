@@ -1,6 +1,8 @@
 # --- DATABASE SETUP (SQLite) ---
 import sqlite3
 import uuid
+
+import bcrypt
 from auth import hash_password
 
 def init_db():
@@ -147,6 +149,25 @@ def init_db():
     # Membuat Index pada client_id dan executed_by untuk mempercepat query log pelanggaran
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_violations_client_id ON user_violations(client_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_violations_executed_by ON user_violations(executed_by)")
+
+    # 1. Membuat tabel (ID wajib angka 1)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS client_password (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            password TEXT NOT NULL
+        )
+    """)
+
+    cursor.execute("SELECT 1 FROM client_password WHERE id = 1;")
+    if cursor.fetchone() is None:
+        hashed_password = bcrypt.hashpw(b"admin123", bcrypt.gensalt()).decode("utf-8")
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO client_password (id, password)
+            VALUES (?, ?)
+            """,
+            (1, hashed_password),
+        )
     
     conn.commit()
     conn.close()

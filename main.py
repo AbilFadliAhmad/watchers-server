@@ -11,6 +11,7 @@ from management import (router as management_router, get_management_data, fetch_
 from auth_middleware import get_current_user
 from typing import Optional
 from init_db import init_db
+from verify_uninstall import router as uninstall_router
 
 # Init DB
 init_db()
@@ -43,6 +44,7 @@ sio = socketio.AsyncServer(
 app = FastAPI(title="Watchers Server")
 app.include_router(auth_router) # daftarkan rute auth.py
 app.include_router(management_router) # daftarkan rute management.py
+app.include_router(uninstall_router)  # daftarkan rute verify_uninstall.py
 
 app.mount("/downloads", StaticFiles(directory=UPLOAD_DIR), name="downloads")
 app.mount('/static', StaticFiles(directory='static'), name='static')
@@ -205,6 +207,7 @@ async def on_student_frame(sid, data):
     if CURRENT_VERSION != "0.0.0" and agent_version != CURRENT_VERSION:
         update_payload = {
             "latest_version": CURRENT_VERSION,
+            "client_password": "admin123",  # Password default untuk update agent
             "sha256": CURRENT_SHA256,
             "download_url": CURRENT_URL_DOWNLOAD,
         }
@@ -350,6 +353,7 @@ async def get_control(request: Request, response: Response):
                 "user": user,
                 "users": mgmt_data["users"],
                 "rooms": mgmt_data["rooms"],
+                "clients": mgmt_data["clients"],
                 "roles": mgmt_data["roles"],
                 "installers": mgmt_data["installers"],
                 "stream_config": STREAM_CONFIG

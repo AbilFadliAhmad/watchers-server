@@ -38,6 +38,10 @@ async def get_management_data(user_role: str) -> dict:
         cursor.execute("SELECT id, name FROM roles ORDER BY id ASC")
         roles = [dict(row) for row in cursor.fetchall()]
 
+         # 3. Ambil Clients
+        cursor.execute("SELECT * FROM clients ORDER BY name ASC")
+        clients = [dict(row) for row in cursor.fetchall()]
+
         # 3. Ambil Users (JOIN ke Roles & Rooms)
         cursor.execute("""
             SELECT 
@@ -50,6 +54,7 @@ async def get_management_data(user_role: str) -> dict:
             INNER JOIN rooms rm ON u.room_id = rm.id
             ORDER BY u.id ASC
         """)
+        
         users = [dict(row) for row in cursor.fetchall()]
 
         # 4. Ambil Installers OTA
@@ -69,6 +74,7 @@ async def get_management_data(user_role: str) -> dict:
             "rooms": rooms,
             "roles": roles,
             "users": users,
+            "clients": clients,
             "installers": installers,
         }
 
