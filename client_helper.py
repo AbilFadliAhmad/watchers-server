@@ -35,10 +35,10 @@ def upsert_client_and_get_info_device(device_id: str, hostname: str) -> dict:
 
     return {"is_locked": False, "message": "", "password": "", "name": hostname}
 
-def update_clients_lock_status(device_ids: list, is_locked: bool, message: str = "", password: str = ""):
+def update_clients_lock_status(device_ids: list[str], is_locked: bool, message: str = "", password: str = ""):
     """
-    Memperbarui status lock (is_locked, message, password) untuk satu 
-    atau beberapa device_id di tabel 'clients' database SQLite server.
+    Memperbarui status lock (is_locked, message, password) secara batch
+    untuk kumpulan device_id di tabel 'clients'.
     """
     if not device_ids:
         return

@@ -41,8 +41,17 @@ async def get_management_data(user_role: str) -> dict:
          # 3. Ambil Clients
         cursor.execute("SELECT * FROM clients ORDER BY name ASC")
         clients = [dict(row) for row in cursor.fetchall()]
+        print(clients, 'dadai')
 
-        # 3. Ambil Users (JOIN ke Roles & Rooms)
+        # 4. Ambil Groups
+        groups = ["all"] + [
+            client["name"].split("-")[0].strip()
+            for client in clients
+            if isinstance(client, dict) and client.get("name")
+        ]
+
+
+        # 4. Ambil Users (JOIN ke Roles & Rooms)
         cursor.execute("""
             SELECT 
                 u.id, 
@@ -54,10 +63,9 @@ async def get_management_data(user_role: str) -> dict:
             INNER JOIN rooms rm ON u.room_id = rm.id
             ORDER BY u.id ASC
         """)
-        
         users = [dict(row) for row in cursor.fetchall()]
 
-        # 4. Ambil Installers OTA
+        # 5. Ambil Installers OTA
         cursor.execute(
             "SELECT name, version, url, sha256 FROM agent_installers ORDER BY id DESC"
         )
@@ -75,6 +83,7 @@ async def get_management_data(user_role: str) -> dict:
             "roles": roles,
             "users": users,
             "clients": clients,
+            "groups": groups,
             "installers": installers,
         }
 
@@ -82,41 +91,53 @@ async def get_management_data(user_role: str) -> dict:
         conn.close()
 
 # --- HELPER FUNCTION: MENCATAT LOG AKTIVITAS ---
-def record_activity_log(client_id: str, action_type: str, details: str, executed_by: str, is_warning: bool | str = False):
+def record_activity_logs(client_ids: list[str], action_type: str, details: str, executed_by: str, is_warning: bool | str = False):
     """
-    Mencatat aktivitas perintah ke tabel activity_logs.
-    Jika parameter is_warning bernilai True / 'iya', data juga akan disimpan ke tabel user_violations.
+    Mencatat aktivitas perintah secara batch (executemany) ke activity_logs (dengan batch_id)
+    dan mencatat pelanggaran per client_id ke user_violations (tanpa batch_id).
     """
-    try:
-        conn = sqlite3.connect("watchers.db")
-        cursor = conn.cursor()
+    if not client_ids:
+        return
 
-        # 1. Selalu catat ke tabel activity_logs (Riwayat Umum)
-        cursor.execute(
+    batch_id = str(uuid.uuid4()) if len(client_ids) > 1 else None
+
+    conn = sqlite3.connect("watchers.db")
+    cursor = conn.cursor()
+    try:
+        # 1. Batch insert ke activity_logs (memakai batch_id untuk pengelompokan log massal)
+        activity_records = [
+            (client_id, batch_id, action_type, details, executed_by)
+            for client_id in client_ids
+        ]
+        cursor.executemany(
             """
-            INSERT INTO activity_logs (client_id, action_type, details, executed_by)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO activity_logs (client_id, batch_id, action_type, details, executed_by)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (client_id, action_type, details, executed_by)
+            activity_records
         )
 
-        # 2. Cek apakah status pelanggaran/peringatan aktif (bisa berupa boolean True atau string 'iya')
+        # 2. Batch insert ke user_violations (tanpa batch_id, langsung per client_id)
         is_violation = is_warning in [True, "iya", "true", "True", 1]
-
         if is_violation:
-            cursor.execute(
+            violation_records = [
+                (client_id, action_type, details, executed_by)
+                for client_id in client_ids
+            ]
+            cursor.executemany(
                 """
                 INSERT INTO user_violations (client_id, action_type, details, executed_by)
                 VALUES (?, ?, ?, ?)
                 """,
-                (client_id, action_type, details, executed_by)
+                violation_records
             )
 
         conn.commit()
-        conn.close()
     except Exception as e:
-        print(f"Gagal mencatat log aktivitas/pelanggaran: {e}")
-
+        print(f"[!] Gagal mencatat batch log aktivitas/pelanggaran: {e}", flush=True)
+        conn.rollback()
+    finally:
+        conn.close()
 # --- HELPER: MENGAMBIL DATA LOGS ---
 def get_violation_advice(total_count: int) -> dict:
     """Mengembalikan status level, kata-kata saran, dan rekomendasi aksi berdasarkan jumlah pelanggaran."""
@@ -187,7 +208,7 @@ async def get_logs_data(
             COALESCE(c.name, v.client_id) AS hostname,
             v.action_type,
             v.details,
-            u.username AS executed_by_username,
+            COALESCE(u.username, 'System') AS executed_by_username,
             v.created_at
         FROM user_violations v
         LEFT JOIN clients c ON v.client_id = c.id
@@ -201,7 +222,7 @@ async def get_logs_data(
     # Pengelompokan Data Pelanggaran per PC / Client ID
     grouped_violations = {}
     for item in raw_violations:
-        cid = item["client_id"] 
+        cid = item["client_id"]
         if cid not in grouped_violations:
             grouped_violations[cid] = {
                 "client_id": cid,
@@ -213,10 +234,9 @@ async def get_logs_data(
         grouped_violations[cid]["total_violations"] += 1
         grouped_violations[cid]["records"].append(item)
 
-    # Urutkan dari PC dengan pelanggaran terbanyak (DESC)
     violations_summary = sorted(
-        grouped_violations.values(), 
-        key=lambda x: x["total_violations"], 
+        grouped_violations.values(),
+        key=lambda x: x["total_violations"],
         reverse=True
     )
 
@@ -224,7 +244,7 @@ async def get_logs_data(
         item["advice_info"] = get_violation_advice(item["total_violations"])
 
     # -------------------------------------------------------------
-    # 2. Query Data Log Aktivitas Umum (activity_logs)
+    # 2. Query Data Log Aktivitas Umum (activity_logs) - Grouped by batch_id
     # -------------------------------------------------------------
     l_where = ["l.created_at >= datetime('now', ?)"]
     l_params = [time_modifier]
@@ -241,22 +261,32 @@ async def get_logs_data(
 
     l_query = f"""
         SELECT 
-            l.id,
-            l.client_id,
-            COALESCE(c.name, l.client_id) AS hostname,
+            MAX(l.id) AS id,
+            l.batch_id,
+            COUNT(l.id) AS total_targets,
+            GROUP_CONCAT(COALESCE(c.name, l.client_id), '||') AS raw_targets,
             l.action_type,
             l.details,
-            u.username AS executed_by_username,
-            l.created_at
+            COALESCE(u.username, 'System') AS executed_by_username,
+            MAX(l.created_at) AS created_at
         FROM activity_logs l
         LEFT JOIN clients c ON l.client_id = c.id
         LEFT JOIN users u ON l.executed_by = u.id
         {l_sql_where}
-        ORDER BY l.id DESC
+        GROUP BY COALESCE(l.batch_id, 'single_' || l.id)
+        ORDER BY MAX(l.id) DESC
         LIMIT ?
     """
     cursor.execute(l_query, tuple(l_params + [limit]))
-    logs = [dict(row) for row in cursor.fetchall()]
+    raw_logs = [dict(row) for row in cursor.fetchall()]
+
+    logs = []
+    for row in raw_logs:
+        targets = row["raw_targets"].split("||") if row["raw_targets"] else []
+        row["targets"] = targets
+        row["is_multi"] = len(targets) > 1
+        row["hostname"] = targets[0] if len(targets) == 1 else f"Multi ({len(targets)} PC)"
+        logs.append(row)
 
     conn.close()
 
@@ -265,6 +295,7 @@ async def get_logs_data(
         "violations_summary": violations_summary,
         "logs": logs
     }
+
 # --- HELPER : GET DATA CONFIG STREAMING ---
 def fetch_stream_config_from_db():
     """Mengambil konfigurasi dari SQLite dan menyusunnya ke dict RAM."""

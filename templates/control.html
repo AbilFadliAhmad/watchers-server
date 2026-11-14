@@ -11,7 +11,6 @@
     <!-- Toastify CSS & JS CDN -->
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-    <script src="{{ static_v('js/skeleton_dashboard.js') }}" defer></script>
     <script src="{{ static_v('js/send_message.js') }}" defer></script>
     <script src="{{ static_v('js/rename_client.js') }}" defer></script>
     <script src="{{ static_v('js/shutdown.js') }}" defer></script>
@@ -28,7 +27,7 @@
     <script src="{{ static_v('js/management_rooms.js') }}" defer></script>
     <script src="{{ static_v('js/management_users.js') }}" defer></script>
     <script src="{{ static_v('js/management_roles.js') }}" defer></script>
-    <script src="{{ static_v('js/multi_sellects.js') }}" defer></script>
+    <script src="{{ static_v('js/filter_and_multi_sellect.js') }}" defer></script>
     <script src="{{ static_v('js/edit_profile.js') }}" defer></script>
 </head>
 <!-- Container Fullscreen Viewer -->
@@ -233,17 +232,19 @@
                     </div>
                 </div>
 
-                <!-- Badge Tunggal Status PC Online (Auto-stretch di HP) -->
-                <div class="flex items-center sm:justify-start gap-3 px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-inner w-full sm:w-auto shrink-0" title="Jumlah PC Aktif">
-                    <div class="flex items-center gap-2">
-                        <span class="relative flex h-2 w-2">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
+                <!-- Dropdown Status PC (HP & Tablet) -->
+                <div class="relative w-full sm:w-auto sm:min-w-[175px] shrink-0">
+                    <div id="mobile-status-dot" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span class="w-2 h-2 rounded-full bg-blue-400"></span>
                     </div>
-                    <div class="flex items-center gap-1.5 font-mono">
-                        <span class="stat-online-pc text-xs font-black text-emerald-400">0</span>
-                        <span class="text-[10px] text-emerald-500/90 uppercase font-bold tracking-wider">Online</span>
+                    <select id="mobile-status-select" onchange="setStatusFilter(this.value)"
+                        class="w-full bg-gray-950/90 border border-gray-800 hover:border-gray-700/80 focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/30 rounded-xl pl-8 pr-8 py-2.5 text-xs font-bold text-gray-100 focus:outline-none transition-all appearance-none cursor-pointer shadow-inner">
+                        <option value="all" selected>Total PC ({{ clients|length if clients else 0 }})</option>
+                        <option value="offline">Offline ({{ clients|length if clients else 0 }})</option>
+                        <option value="online">Online (0)</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-500">
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                     </div>
                 </div>
 
@@ -274,7 +275,199 @@
 
     <!-- Grid Kartu PC Siswa -->
     <main id="student-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        <!-- Live Status Panel & Kartu PC siswa akan dirender di sini via JavaScript -->
+        {% if clients %}
+        <!-- Live Status Panel (Desktop) -->
+        <div id="live-status-panel" class="p-5 rounded-xl bg-white/[0.02] border border-white/10 space-y-4 hidden lg:block">
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-gray-300 uppercase tracking-wider">Status Ruangan</span>
+                {% if user.role in ['admin'] %}
+                <select id="desktop-room-select" onchange="switchRoom(this.value)" class="bg-gray-900 border border-gray-800 text-indigo-400 font-mono text-[10px] rounded px-2 py-0.5 focus:outline-none cursor-pointer">
+                    {% for group in groups %}
+                    <option value="{{ group }}" {% if loop.index == 1 %}selected{% endif %}>{{ group }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <span class="text-[10px] text-indigo-400 font-mono">{{ groups[1] if groups else 'LAB-01' }}</span>
+                {% endif %}
+            </div>
+
+            <div class="flex flex-col gap-2.5">
+                <!-- 1. Semua (Default Menyala) -->
+                <button type="button" data-status-filter="all" onclick="setStatusFilter('all')"
+                    class="status-filter-btn w-full p-3 rounded-lg bg-blue-950/60 border border-blue-400 ring-1 ring-blue-400/50 shadow-lg shadow-blue-950/40 flex justify-between items-center cursor-pointer transition-all">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                        <span class="text-xs font-semibold text-gray-100"><span class="stat-all-pc">{{ clients|length }}</span> Total PC</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-blue-300 font-bold">Semua</span>
+                </button>
+
+                <!-- 2. Offline -->
+                <button type="button" data-status-filter="offline" onclick="setStatusFilter('offline')"
+                    class="status-filter-btn w-full p-3 rounded-lg bg-rose-950/20 border border-rose-500/20 opacity-75 hover:opacity-100 flex justify-between items-center cursor-pointer transition-all">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                        <span class="text-xs font-semibold text-gray-200"><span class="stat-offline-pc">{{ clients|length }}</span> PC Terputus</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-rose-400">Offline</span>
+                </button>
+
+                <!-- 3. Online -->
+                <button type="button" data-status-filter="online" onclick="setStatusFilter('online')"
+                    class="status-filter-btn w-full p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/20 opacity-75 hover:opacity-100 flex justify-between items-center cursor-pointer transition-all">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-xs font-semibold text-gray-200"><span class="stat-online-pc">0</span> PC Terhubung</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-emerald-400">Online</span>
+                </button>
+
+                <div class="w-full">
+                    <div class="flex items-center gap-2.5 w-full bg-gray-900 border border-gray-800 focus-within:border-indigo-500 rounded-lg px-3 py-2.5 transition">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-gray-500 shrink-0"></i>
+                        <input type="text" id="search-hostname-input" oninput="filterPcsByHostname(this.value)" 
+                            placeholder="Cari Nama PC" 
+                            class="w-full bg-transparent border-none text-sm text-gray-100 placeholder-gray-500 focus:outline-none p-0">
+                    </div>
+                </div>
+                <button id="toggle-multiselect-btn" onclick="toggleMultiSelectMode()" 
+                    class="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition">
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-indigo-400"></i>
+                    <span id="multiselect-btn-text">Pilih Banyak PC</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Daftar Kartu PC dari Jinja2 -->
+        {% for client in clients %}
+        <div id="pc-{{ client.id }}" class="bg-gray-900 rounded-xl p-4 border border-gray-800 shadow-xl flex flex-col justify-between hover:border-gray-700 transition">
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-1.5 min-w-0 pr-2">
+                        <span class="status-dot w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                        <i data-lucide="monitor" class="w-4 h-4 text-indigo-400 shrink-0"></i>
+                        <span class="hostname-text font-bold text-sm text-indigo-300 line-clamp-1 break-all" title="{{ client.name }}">
+                            {{ client.name }}
+                        </span>
+                    </div>
+
+                    <div class="relative group shrink-0">
+                        <button type="button" class="p-1 rounded-full text-gray-400 hover:text-indigo-400 hover:bg-gray-800/80 transition-colors focus:outline-none">
+                            <i data-lucide="info" class="w-4 h-4"></i>
+                        </button>
+                        <div class="absolute right-0 top-full mt-1.5 hidden group-hover:flex flex-col gap-1.5 z-30 w-36 p-2.5 bg-gray-900 border border-gray-800 rounded-lg shadow-xl text-[11px] font-mono text-gray-200 pointer-events-none">
+                            <div class="flex justify-between items-center border-b border-gray-800 pb-1">
+                                <span class="text-gray-400 font-sans">Informasi Perangkat</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400">VERSION:</span>
+                                <span class="telemetry-agent-version font-semibold text-indigo-300">-</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400">CPU:</span>
+                                <span class="telemetry-cpu font-semibold text-indigo-300">0%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400">RAM:</span>
+                                <span class="telemetry-ram font-semibold text-indigo-300">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative group mb-3 w-full h-40 bg-gray-950 rounded-lg overflow-hidden border border-gray-800 shadow-inner flex items-center justify-center">
+                    <!-- Tampilan Offline Default -->
+                    <div class="offline-overlay absolute inset-0 bg-gradient-to-b from-gray-900/90 to-gray-950 flex flex-col items-center justify-center gap-2 z-30 select-none">
+                        <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shadow-inner">
+                            <i data-lucide="monitor-off" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-xs font-bold text-gray-300 tracking-wide">Perangkat Offline</span>
+                        <span class="text-[10px] font-mono text-gray-500">Menunggu koneksi PC...</span>
+                    </div>
+
+                    <!-- Overlay Terkunci -->
+                    <div class="lock-overlay {{ '' if client.is_locked else 'hidden' }} absolute inset-0 bg-black/95 rounded-lg flex flex-col items-center justify-center gap-2 border border-yellow-600/40 z-20 backdrop-blur-md">
+                        <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-yellow-400 shadow-lg">
+                            <i data-lucide="lock" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <!-- Spinner Loading Layar -->
+                    <div class="spinner-overlay hidden absolute inset-0 bg-gray-950 flex flex-col items-center justify-center gap-2 z-10">
+                        <div class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span class="text-[11px] text-gray-500 font-mono">Memuat Layar...</span>
+                    </div>
+
+                    <img ondblclick="openFullscreenView('{{ client.id }}', '{{ client.name }}')"
+                        src=""
+                        class="student-screen hidden w-full h-40 object-cover cursor-pointer z-0">
+                </div>
+
+                <div class="download-container hidden p-2.5 bg-gray-950 border border-indigo-500/30 rounded-lg flex flex-col gap-1.5">
+                    <div class="flex justify-between items-center text-[11px]">
+                        <span class="flex items-center gap-1.5 text-indigo-400 font-medium">
+                            <i data-lucide="download-cloud" class="w-3.5 h-3.5 animate-bounce"></i>
+                            Mengunduh Update...
+                        </span>
+                        <span class="download-progress-text text-indigo-300 font-mono font-bold">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden border border-gray-700">
+                        <div class="download-progress-bar bg-indigo-500 h-full transition-all duration-300 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2 mt-2">
+                <button onclick="showAppDetails('{{ client.id }}', '{{ client.name }}')" class="w-full text-xs bg-gray-950 hover:bg-gray-800 text-gray-300 border border-gray-800 py-2 px-3 rounded-lg flex items-center justify-between transition group">
+                    <div class="flex items-center gap-2 overflow-hidden mr-1">
+                        <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                        <span class="truncate text-left">Aplikasi Aktif</span>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 shrink-0"></i>
+                </button>
+
+                <div class="relative">
+                    <button onclick="toggleDropdownMoreAction(event, '{{ client.id }}')" class="w-full text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-3 rounded-lg flex items-center justify-between transition shadow-md">
+                        <span class="flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                            More Action
+                        </span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                    </button>
+
+                    <div id="dropdown-{{ client.id }}" class="dropdown-menu hidden absolute bottom-full left-0 right-0 mt-1.5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 backdrop-blur-md">
+                        <button onclick="openFullscreenView('{{ client.id }}', '{{ client.name }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                            <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-blue-400"></i> Fullscreen View
+                        </button>
+                        <button onclick="openRenameModal('{{ client.id }}', '{{ client.name }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-400"></i> Ubah Nama PC
+                        </button>
+                        <button onclick="openMessageModal('{{ client.id }}', '{{ client.name }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                            <i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-400"></i> Kirim Pesan
+                        </button>
+                        <button onclick="openUrlModal('{{ client.id }}', '{{ client.name }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                            <i data-lucide="globe" class="w-3.5 h-3.5 text-sky-400"></i> Kunjungi URL
+                        </button>
+                        <button onclick="openMacroModal('{{ client.id }}', '{{ client.name }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                            <i data-lucide="keyboard" class="w-3.5 h-3.5 text-purple-400"></i> Ketik Otomatis
+                        </button>
+                        <div class="border-t border-gray-800 my-1"></div>
+                        <button onclick="openLockModal('{{ client.id }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-yellow-600 hover:text-white flex items-center gap-2.5 transition">
+                            <i data-lucide="lock" class="w-3.5 h-3.5 text-yellow-400"></i> Kunci Layar
+                        </button>
+                        <button onclick="unlockScreen('{{ client.id }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-emerald-600 hover:text-white flex items-center gap-2.5 transition">
+                            <i data-lucide="unlock" class="w-3.5 h-3.5 text-emerald-400"></i> Buka Kunci
+                        </button>
+                        <div class="border-t border-gray-800 my-1"></div>
+                        <button onclick="confirmShutdown('{{ client.id }}', '{{ client.name }}')" class="w-full text-xs text-left px-3.5 py-2 text-rose-300 hover:bg-rose-600 hover:text-white flex items-center gap-2.5 transition">
+                            <i data-lucide="power" class="w-3.5 h-3.5 text-rose-400"></i> Matikan PC
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
     </main>
 
     <!-- MODAL ATUR STAFF (USERS) -->
@@ -698,16 +891,21 @@
 
     <script>
         const socket = io();
-        const activeAppsData = {}; // Menyimpan detail daftar aplikasi per SID
-        const user = {{ user | tojson | safe }};    // {id, username, role, room}
-        const users = {{ users | tojson | safe }};    // [{id, username, role, room}]
-        let roles = {{ roles | tojson | safe }};    // [{id, name}]
-        const rooms = {{ rooms | tojson | safe }};  // [{id, name}]
-        let agentLists = {{ installers |  safe }};
+        const activeAppsData = {}; // Menyimpan detail daftar aplikasi per ID
+        const connectedPcs = new Set(); // Menyimpan ID PC yang sedang online
+        const user = {{ user | tojson | safe }};
+        const users = {{ users | tojson | safe }};
+        let roles = {{ roles | tojson | safe }};
+        const rooms = {{ rooms | tojson | safe }};
+        const groups = {{ groups | tojson | safe }};
+        let agentLists = {{ installers | safe }};
+        const clients = {{ clients | tojson | safe }} || [];
+        let choosen_clients = []; // Variabel penampung SID/PC terpilih
         let activeSid = null;
         let activeHostname = '';
-        let activeRoom = ''; // Variabel untuk menyimpan room yang dipilih
-        let activeSearchKeyword = ''; // Variabel untuk menyimpan keyword pencarian
+        let activeGroup = '';
+        let activeSearchKeyword = '';
+        let activeStatusFilter = 'all';
 
         const objectUrlCache = {};
 
@@ -715,61 +913,72 @@
             socket.emit("register_teacher", {user:user});
         });
 
-        // Map untuk menyimpan Blob URL lama agar bisa di-revoke (mencegah memory leak)
         socket.on("student_connected", (hostname) => {
             Toastify({
                 text: `✨ Santri (${hostname}) terhubung. Sinkronisasi layar berlangsung...`,
                 duration: 3000,
-                gravity: "top",     // 'top' atau 'bottom'
-                position: "right",     // 'left', 'center', atau 'right'
-                stopOnFocus: true,     // Mencegah toast hilang saat kursor di-hover
+                gravity: "top",
+                position: "right",
+                stopOnFocus: true,
                 style: {
-                    background: "#0f172a",                 // Dark Slate (Background)
-                    color: "#e2e8f0",                      // Teks Putih/Abu Terang
-                    border: "1px solid #374151",            // Border Gray 700
-                    borderRadius: "0.75rem",               // Rounded XL
-                    fontSize: "0.8125rem",                 // Text XS/SM
+                    background: "#0f172a",
+                    color: "#e2e8f0",
+                    border: "1px solid #374151",
+                    borderRadius: "0.75rem",
+                    fontSize: "0.8125rem",
                     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)"
                 }
             }).showToast();
         });
+
         socket.on("student_disconnected", (data) => {
-            const sid = data?.device_id ?? null;
+            const id = data?.id ?? data?.device_id ?? null;
             const hostname = data?.name ?? null;
 
-            if (sid) {
-                connectedPcs.delete(sid);
+            if (id) {
+                connectedPcs.delete(id);
+                delete activeAppsData[id];
 
-                const card = document.getElementById(`pc-${sid}`);
+                const card = document.getElementById(`pc-${id}`);
                 if (card) {
-                    card.remove();
+                    const offlineOverlay = card.querySelector('.offline-overlay');
+                    const imgElem = card.querySelector('.student-screen');
+                    const spinnerOverlay = card.querySelector('.spinner-overlay');
+                    const lockOverlay = card.querySelector('.lock-overlay');
+                    const statusDot = card.querySelector('.status-dot');
+
+                    if (offlineOverlay) offlineOverlay.classList.remove('hidden');
+                    if (imgElem) {
+                        imgElem.src = '';
+                        imgElem.classList.add('hidden');
+                    }
+                    if (spinnerOverlay) spinnerOverlay.classList.add('hidden');
+                    if (lockOverlay) lockOverlay.classList.add('hidden');
+                    if (statusDot) {
+                        statusDot.classList.remove('bg-emerald-400', 'animate-pulse');
+                        statusDot.classList.add('bg-rose-500');
+                    }
+
                     showToast(`🔌 Santri (${hostname}) terputus dari jaringan.`, "failed");
                 }
-                delete activeAppsData[sid];
 
-                if (connectedPcs.size === 0) {
-                    // Hapus panel live status jika tidak ada PC lagi
-                    const panel = document.getElementById("live-status-panel");
-                    if (panel) panel.remove();
-                    showEmptyState();
-                } else {
-                    ensureLiveStatusPanel();
-                }
+                ensureLiveStatusPanel();
+                if (typeof applyCardFilters === 'function') applyCardFilters();
             }
 
-            if (objectUrlCache[sid]) {
-                URL.revokeObjectURL(objectUrlCache[sid]);
-                delete objectUrlCache[sid];
+            if (objectUrlCache[id]) {
+                URL.revokeObjectURL(objectUrlCache[id]);
+                delete objectUrlCache[id];
             }
         });
-        socket.on("update_student_card", (data) => {
-            connectedPcs.add(data.sid);
-            clearPlaceholders();
-            
-            // 1. Pastikan Live Status Panel Terbuat & Ter-update
-            ensureLiveStatusPanel();
 
-            let card = document.getElementById(`pc-${data.sid}`);
+        socket.on("update_student_card", (data) => {
+            const id = data.device_id || data.id;
+            const card = document.getElementById(`pc-${id}`);
+            if (!card) return;
+
+            connectedPcs.add(id);
+            ensureLiveStatusPanel();
 
             // Pengolahan Gambar
             let imageUrl = null;
@@ -786,300 +995,156 @@
                         ? data.image
                         : new Blob([data.image], { type: 'image/webp' });
 
-                    if (objectUrlCache[data.sid]) {
-                        URL.revokeObjectURL(objectUrlCache[data.sid]);
+                    if (objectUrlCache[id]) {
+                        URL.revokeObjectURL(objectUrlCache[id]);
                     }
 
                     imageUrl = URL.createObjectURL(blob);
-                    objectUrlCache[data.sid] = imageUrl;
+                    objectUrlCache[id] = imageUrl;
                 } else {
                     hasImage = false;
                 }
             }
 
             const openWindows = data.telemetry?.open_windows || [];
-            activeAppsData[data.sid] = openWindows;
+            activeAppsData[id] = openWindows;
             const isLocked = Boolean(data.is_locked || data.isLocked);
 
-            if (activeSid === data.sid) {
+            if (activeSid === id) {
                 const fsImg = document.getElementById('fullscreen-img');
                 if (fsImg && imageUrl) fsImg.src = imageUrl;
             }
+
+            // Perbarui Tampilan Kartu yang Sudah Ada
+            const offlineOverlay = card.querySelector('.offline-overlay');
+            const imgElem = card.querySelector('.student-screen');
+            const lockOverlay = card.querySelector('.lock-overlay');
+            const spinnerOverlay = card.querySelector('.spinner-overlay');
+            const statusDot = card.querySelector('.status-dot');
+
+            if (offlineOverlay) offlineOverlay.classList.add('hidden');
+            if (statusDot) {
+                statusDot.classList.remove('bg-rose-500');
+                statusDot.classList.add('bg-emerald-400', 'animate-pulse');
+            }
+
+            if (lockOverlay) {
+                lockOverlay.classList.toggle('hidden', !isLocked);
+            }
+
+            if (hasImage) {
+                imgElem.src = imageUrl;
+                imgElem.classList.remove('hidden');
+                if (spinnerOverlay) spinnerOverlay.classList.add('hidden');
+            } else {
+                imgElem.classList.add('hidden');
+                if (spinnerOverlay) spinnerOverlay.classList.remove('hidden');
+            }
+
+            const cpuEl = card.querySelector('.telemetry-cpu');
+            const ramEl = card.querySelector('.telemetry-ram');
+            const versionEl = card.querySelector('.telemetry-agent-version');
+
+            if (cpuEl) cpuEl.innerText = `${data.telemetry?.cpu || 0}%`;
+            if (ramEl) ramEl.innerText = `${data.telemetry?.ram || 0}%`;
+            if (versionEl) versionEl.innerText = `${data.telemetry?.agent_version || "0.0.0"}`;
 
             const rawProgress = data.telemetry?.percentage_downloaded || 0;
             const progress = Number(rawProgress);
             const isDownloading = progress > 0;
             const progressFormatted = Number.isInteger(progress) ? progress : progress.toFixed(1);
 
-            // 2. Buat Kartu Baru Jika Belum Ada
-            if (!card) {
-                card = document.createElement("div");
-                card.id = `pc-${data.sid}`;
-                card.className = "bg-gray-900 rounded-xl p-4 border border-gray-800 shadow-xl flex flex-col justify-between hover:border-gray-700 transition";
+            const downloadContainer = card.querySelector('.download-container');
+            const progressBar = card.querySelector('.download-progress-bar');
+            const progressText = card.querySelector('.download-progress-text');
 
-                card.innerHTML = `
-                    <div>
-                        <div class="flex justify-between items-center mb-3">
-                            <div class="flex items-center gap-1.5 min-w-0 pr-2">
-                                <i data-lucide="monitor" class="w-4 h-4 text-indigo-400 shrink-0"></i>
-                                <span class="hostname-text font-bold text-sm text-indigo-300 line-clamp-1 break-all" title="${data.hostname}">
-                                    ${data.hostname}
-                                </span>
-                            </div>
-
-                            <div class="relative group shrink-0">
-                                <button type="button" class="p-1 rounded-full text-gray-400 hover:text-indigo-400 hover:bg-gray-800/80 transition-colors focus:outline-none">
-                                    <i data-lucide="info" class="w-4 h-4"></i>
-                                </button>
-                                <div class="absolute right-0 top-full mt-1.5 hidden group-hover:flex flex-col gap-1.5 z-30 w-36 p-2.5 bg-gray-900 border border-gray-800 rounded-lg shadow-xl text-[11px] font-mono text-gray-200 pointer-events-none">
-                                    <div class="flex justify-between items-center border-b border-gray-800 pb-1">
-                                        <span class="text-gray-400 font-sans">Informasi Perangkat</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-gray-400">VERSION:</span>
-                                        <span class="telemetry-agent-version font-semibold text-indigo-300">${data.telemetry?.agent_version || "0.0.0"}</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-gray-400">CPU:</span>
-                                        <span class="telemetry-cpu font-semibold text-indigo-300">${data.telemetry?.cpu || 0}%</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-gray-400">RAM:</span>
-                                        <span class="telemetry-ram font-semibold text-indigo-300">${data.telemetry?.ram || 0}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="relative group mb-3 w-full h-40 bg-gray-950 rounded-lg overflow-hidden border border-gray-800 shadow-inner flex items-center justify-center">
-                            <div class="lock-overlay ${isLocked ? '' : 'hidden'} absolute inset-0 bg-black/95 rounded-lg flex flex-col items-center justify-center gap-2 border border-yellow-600/40 z-30 backdrop-blur-md">
-                                <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-yellow-400 shadow-lg">
-                                    <i data-lucide="lock" class="w-6 h-6"></i>
-                                </div>
-                            </div>
-
-                            <div class="spinner-overlay ${hasImage ? 'hidden' : ''} absolute inset-0 bg-gray-950 flex flex-col items-center justify-center gap-2 z-20">
-                                <div class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                <span class="text-[11px] text-gray-500 font-mono">Memuat Layar...</span>
-                            </div>
-
-                            <img ondblclick="openFullscreenView('${data.sid}', '${data.hostname}')"
-                                src="${imageUrl || ''}"
-                                class="student-screen ${hasImage ? '' : 'hidden'} w-full h-40 object-cover cursor-pointer z-10">
-                        </div>
-
-                        <div class="download-container ${isDownloading ? '' : 'hidden'} p-2.5 bg-gray-950 border border-indigo-500/30 rounded-lg flex flex-col gap-1.5">
-                            <div class="flex justify-between items-center text-[11px]">
-                                <span class="flex items-center gap-1.5 text-indigo-400 font-medium">
-                                    <i data-lucide="download-cloud" class="w-3.5 h-3.5 animate-bounce"></i>
-                                    Mengunduh Update...
-                                </span>
-                                <span class="download-progress-text text-indigo-300 font-mono font-bold">${progressFormatted}%</span>
-                            </div>
-                            <div class="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden border border-gray-700">
-                                <div class="download-progress-bar bg-indigo-500 h-full transition-all duration-300 rounded-full" style="width: ${Math.min(100, Math.max(0, progress))}%"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col gap-2 mt-2">
-                        <button onclick="showAppDetails('${data.sid}', '${data.hostname}')" class="w-full text-xs bg-gray-950 hover:bg-gray-800 text-gray-300 border border-gray-800 py-2 px-3 rounded-lg flex items-center justify-between transition group">
-                            <div class="flex items-center gap-2 overflow-hidden mr-1">
-                                <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
-                                <span class="truncate text-left">Aplikasi Aktif</span>
-                            </div>
-                            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-500 group-hover:text-gray-300 shrink-0"></i>
-                        </button>
-
-                        <div class="relative">
-                            <button onclick="toggleDropdownMoreAction(event, '${data.sid}')" class="w-full text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-3 rounded-lg flex items-center justify-between transition shadow-md">
-                                <span class="flex items-center gap-2">
-                                    <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
-                                    More Action
-                                </span>
-                                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
-                            </button>
-
-                            <div id="dropdown-${data.sid}" class="dropdown-menu hidden absolute bottom-full left-0 right-0 mt-1.5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 backdrop-blur-md">
-                                <button onclick="openFullscreenView('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
-                                    <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-blue-400"></i> Fullscreen View
-                                </button>
-                                <button onclick="openRenameModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
-                                    <i data-lucide="edit-3" class="w-3.5 h-3.5 text-amber-400"></i> Ubah Nama PC
-                                </button>
-                                <button onclick="openMessageModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
-                                    <i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-400"></i> Kirim Pesan
-                                </button>
-                                <button onclick="openUrlModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
-                                    <i data-lucide="globe" class="w-3.5 h-3.5 text-sky-400"></i> Kunjungi URL
-                                </button>
-                                <button onclick="openMacroModal('${data.sid}', '${data.hostname}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
-                                    <i data-lucide="keyboard" class="w-3.5 h-3.5 text-purple-400"></i> Ketik Otomatis
-                                </button>
-                                <div class="border-t border-gray-800 my-1"></div>
-                                <button onclick="openLockModal('${data.sid}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-yellow-600 hover:text-white flex items-center gap-2.5 transition">
-                                    <i data-lucide="lock" class="w-3.5 h-3.5 text-yellow-400"></i> Kunci Layar
-                                </button>
-                                <button onclick="unlockScreen('${data.sid}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-emerald-600 hover:text-white flex items-center gap-2.5 transition">
-                                    <i data-lucide="unlock" class="w-3.5 h-3.5 text-emerald-400"></i> Buka Kunci
-                                </button>
-                                <div class="border-t border-gray-800 my-1"></div>
-                                <button onclick="confirmShutdown('${data.sid}', '${data.hostname}')" class="w-full text-xs text-left px-3.5 py-2 text-rose-300 hover:bg-rose-600 hover:text-white flex items-center gap-2.5 transition">
-                                    <i data-lucide="power" class="w-3.5 h-3.5 text-rose-400"></i> Matikan PC
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                document.getElementById("student-grid").appendChild(card);
-                lucide.createIcons();
-            } else {
-                // Update Elemen Kartu yang Sudah Ada
-                const imgElem = card.querySelector('.student-screen');
-                const lockOverlay = card.querySelector('.lock-overlay');
-                const spinnerOverlay = card.querySelector('.spinner-overlay');
-
-                if (hasImage) {
-                    imgElem.src = imageUrl;
-                    imgElem.classList.remove('hidden');
-                    lockOverlay.classList.add('hidden');
-                    spinnerOverlay.classList.add('hidden');
+            if (downloadContainer && progressBar && progressText) {
+                if (isDownloading) {
+                    downloadContainer.classList.remove('hidden');
+                    progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+                    progressText.innerText = `${progressFormatted}%`;
                 } else {
-                    imgElem.classList.add('hidden');
-                }
-
-                const cpuEl = card.querySelector('.telemetry-cpu');
-                const ramEl = card.querySelector('.telemetry-ram');
-                const versionEl = card.querySelector('.telemetry-agent-version');
-
-                if (cpuEl) cpuEl.innerText = `${data.telemetry?.cpu || 0}%`;
-                if (ramEl) ramEl.innerText = `${data.telemetry?.ram || 0}%`;
-                if (versionEl) versionEl.innerText = `${data.telemetry?.agent_version || "0.0.0"}`;
-
-                const downloadContainer = card.querySelector('.download-container');
-                const progressBar = card.querySelector('.download-progress-bar');
-                const progressText = card.querySelector('.download-progress-text');
-
-                if (downloadContainer && progressBar && progressText) {
-                    if (isDownloading) {
-                        downloadContainer.classList.remove('hidden');
-                        progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
-                        progressText.innerText = `${progressFormatted}%`;
-                    } else {
-                        downloadContainer.classList.add('hidden');
-                    }
+                    downloadContainer.classList.add('hidden');
                 }
             }
 
-            // 3. Terapkan Filter jika ada
-            if (activeSearchKeyword || (activeRoom && activeRoom !== '' && activeRoom !== 'all')) {
-                applyCardFilters();
-            }
+            if (typeof applyCardFilters === 'function') applyCardFilters();
         });
+
         // Tutup dropdown jika klik di luar kartu
         window.addEventListener('click', () => {
             document.querySelectorAll('.dropdown-menu').forEach(el => el.classList.add('hidden'));
         });
 
-        // Fungsi untuk membuat/memperbarui Live Status Panel di dalam #student-grid
+        // Perbarui angka statistik Semua, Offline, dan Online
         function ensureLiveStatusPanel() {
-            const count = connectedPcs.size;
+            const totalCount = clients.length;
+            const onlineCount = connectedPcs.size;
+            const offlineCount = Math.max(0, totalCount - onlineCount);
 
-            // Perbarui seluruh elemen status online (baik mobile maupun desktop)
+            document.querySelectorAll(".stat-all-pc").forEach(el => {
+                el.innerText = totalCount;
+            });
+            document.querySelectorAll(".stat-offline-pc").forEach(el => {
+                el.innerText = offlineCount;
+            });
             document.querySelectorAll(".stat-online-pc").forEach(el => {
-                el.innerText = count;
+                el.innerText = onlineCount;
             });
 
-            if (window.innerWidth < 1024) return;
-
-            const grid = document.getElementById("student-grid");
-            if (!grid) return;
-
-            let panel = document.getElementById("live-status-panel");
-
-            // Jika PC ada dan panel belum dibuat, render panel ke grid
-            if (!panel && count > 0) {
-                panel = document.createElement("div");
-                panel.id = "live-status-panel";
-                panel.className = "p-5 rounded-xl bg-white/[0.02] border border-white/10 space-y-4 hidden lg:block";
-
-                // Tampilan Role Select (Admin vs Staff)
-                const isAdmin = user && ['direktur', 'developer', 'admin'].includes(user.role);
-                let roomSelectHtml = '';
-
-                if (isAdmin) {
-                    // Generate elemen <option> secara dinamis berdasarkan data dari variabel rooms
-                    const roomOptions = (typeof rooms !== 'undefined' && Array.isArray(rooms))
-                        ? rooms.map(r => `<option value="${r.name}">${r.name}</option>`).join('')
-                        : '<option value="1">LAB-01</option>';
-
-                    roomSelectHtml = `
-                        <select id="desktop-room-select" onchange="switchRoom(this.value)" class="bg-gray-900 border border-gray-800 text-indigo-400 font-mono text-[10px] rounded px-2 py-0.5 focus:outline-none cursor-pointer">
-                            ${roomOptions}
-                        </select>
-                    `;
-                } else {
-                    const firstRoomName = (typeof rooms !== 'undefined' && rooms.length > 0) ? rooms[0].name : 'LAB-01';
-                    roomSelectHtml = `<span class="text-[10px] text-indigo-400 font-mono">${firstRoomName}</span>`;
-                }
-
-                panel.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-bold text-gray-300 uppercase tracking-wider">Status Ruangan</span>
-                        ${roomSelectHtml}
-                    </div>
-
-                    <div class="flex flex-col gap-2.5">
-                        <!-- 1. Semua -->
-                        <div class="p-3 rounded-lg bg-blue-950/30 border border-blue-500/20 flex justify-between items-center">
-                            <div class="flex items-center gap-2.5">
-                                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-                                <span class="text-xs font-semibold text-gray-200"><span class="stat-all-pc">${count}</span> Total PC</span>
-                            </div>
-                            <span class="text-[10px] font-mono text-blue-400">Semua</span>
-                        </div>
-
-                        <!-- 2. Offline -->
-                        <div class="p-3 rounded-lg bg-rose-950/30 border border-rose-500/20 flex justify-between items-center">
-                            <div class="flex items-center gap-2.5">
-                                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                                <span class="text-xs font-semibold text-gray-200"><span class="stat-offline-pc">${count}</span> PC Terputus</span>
-                            </div>
-                            <span class="text-[10px] font-mono text-rose-400">Offline</span>
-                        </div>
-
-                        <!-- 3. Online -->
-                        <div class="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/20 flex justify-between items-center">
-                            <div class="flex items-center gap-2.5">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                <span class="text-xs font-semibold text-gray-200"><span class="stat-online-pc">${count}</span> PC Terhubung</span>
-                            </div>
-                            <span class="text-[10px] font-mono text-emerald-400">Online</span>
-                        </div>
-                        <div class="w-full">
-                            <div class="flex items-center gap-2.5 w-full bg-gray-900 border border-gray-800 focus-within:border-indigo-500 rounded-lg px-3 py-2.5 transition">
-                                <i data-lucide="search" class="w-3.5 h-3.5 text-gray-500 shrink-0"></i>
-                                <input type="text" id="search-hostname-input" oninput="filterPcsByHostname(this.value)" 
-                                    placeholder="Cari Nama PC" 
-                                    class="w-full bg-transparent border-none text-sm text-gray-100 placeholder-gray-500 focus:outline-none p-0">
-                            </div>
-                        </div>
-                        <button id="toggle-multiselect-btn" onclick="toggleMultiSelectMode()" 
-                            class="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white rounded-lg text-sm font-semibold transition">
-                            <i data-lucide="check-circle-2" class="w-4 h-4 text-indigo-400"></i>
-                            <span id="multiselect-btn-text">Pilih Banyak PC</span>
-                        </button>
-                    </div>
-                `;
-
-                grid.prepend(panel);
-                lucide.createIcons();
+            // Sinkronkan jumlah pada opsi dropdown HP
+            const mobileSelect = document.getElementById("mobile-status-select");
+            if (mobileSelect) {
+                const optAll = mobileSelect.querySelector('option[value="all"]');
+                const optOffline = mobileSelect.querySelector('option[value="offline"]');
+                const optOnline = mobileSelect.querySelector('option[value="online"]');
+                if (optAll) optAll.text = `Total PC (${totalCount})`;
+                if (optOffline) optOffline.text = `Offline (${offlineCount})`;
+                if (optOnline) optOnline.text = `Online (${onlineCount})`;
             }
         }
 
-        function sendDirectCommand(sid, action, extraData = {}) {
-            socket.emit("send_command", { executed_by:user.id, target_sid: sid, command: {action: action, ...extraData} });
+        function sendDirectCommand(target, action, extraData = {}) {
+            const selectedList = typeof choosen_clients !== 'undefined'
+                ? choosen_clients
+                : [];
+
+            let targetDeviceIds = [];
+
+            if (target === 'all') {
+                if (selectedList.length > 0) {
+                    // 1. Jika 'all' dan ada PC yang dicentang, gunakan daftar pilihan tersebut
+                    targetDeviceIds = [...selectedList];
+                } else {
+                    // 2. Jika hanya 'all' tanpa pilihan, ambil semua kartu yang online di ruangan ini
+                    const currentGroup = (activeGroup || '').toLowerCase().trim();
+                    targetDeviceIds = Array.from(document.querySelectorAll('#student-grid > [id^="pc-"]'))
+                        .filter(card => {
+                            const id = card.id.replace('pc-', '');
+                            if (!connectedPcs.has(id)) return false;
+                            if (!currentGroup || currentGroup === 'all') return true;
+                            const hostname = card.querySelector('.hostname-text')?.innerText.toLowerCase().trim() || '';
+                            return hostname.split('-')[0].trim() === currentGroup;
+                        })
+                        .map(card => card.id.replace('pc-', ''));
+                }
+            } else if (Array.isArray(target)) {
+                targetDeviceIds = target;
+            } else if (target) {
+                // 3. Jika bukan 'all', kirim satuan sebagai array
+                targetDeviceIds = [target];
+            }
+
+            if (targetDeviceIds.length === 0) {
+                showToast('⚠️ Tidak ada PC online yang tersedia untuk menerima perintah.', 'failed');
+                return;
+            }
+
+            socket.emit("send_command", {
+                executed_by: user.id,
+                device_ids: targetDeviceIds,
+                command: { action: action, ...extraData }
+            });
         }
 
         function toggleDropdownMoreAction(event, sid) {

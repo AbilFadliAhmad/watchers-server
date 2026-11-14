@@ -7,7 +7,7 @@ import os
 import shutil
 from auth import (router as auth_router)
 from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_get_info_device, verify_client_password
-from management import (router as management_router, get_management_data, fetch_stream_config_from_db, get_logs_data, record_activity_log)
+from management import (router as management_router, get_management_data, fetch_stream_config_from_db, get_logs_data, record_activity_logs)
 from auth_middleware import get_current_user
 from typing import Optional
 from init_db import init_db
@@ -219,7 +219,7 @@ async def on_student_frame(sid, data):
 
     # Data disalurkan HANYA ke client yang berada di room 'all'
     payload = {
-        "sid": device_id,
+        "device_id": device_id,
         "hostname": connected_students.get(device_id, {}).get(
             "name", hostname
         ),
@@ -235,38 +235,40 @@ async def on_student_frame(sid, data):
     
     await sio.emit("update_student_card", payload, room=target_rooms)
 
-@sio.on("send_command") # type: ignore
+@sio.on("send_command")  # type: ignore
 async def on_send_command(sid, data):
     """
     Menerima perintah remot dari Web Dashboard Guru dan meneruskannya ke Client Siswa.
-    Payload: {"target_sid": "all" | "DEVICE_ID", "command": {"action": "message", "is_warning": "iya" | false, ...}}
+    Payload: {"device_ids": ["DEVICE_ID_1", ...], "executed_by": "USER_ID", "command": {"action": "message", ...}}
     """
-
     command = data.get("command", {})
     action = command.get("action")
     is_warning = command.get("is_warning", False)
-    log_details = command.get("log_details", "Tidak ada catatan")  # Default jika tidak ada log_details
-    raw_target = data.get("target_sid")
-    target_room = (await sio.get_session(sid) or {}).get('room', '')
+    log_details = command.get("log_details", "Tidak ada catatan")
     executed_by = data.get("executed_by")
 
-    # 1. Tentukan target socket SID untuk penyiaran websocket
-    if raw_target == "all":
-        socket_target = "all"
+    # 1. Normalisasi target menjadi array device_ids
+    raw_targets = data.get("device_ids") or []
+    if isinstance(raw_targets, list):
+        target_device_ids = [dev_id for dev_id in raw_targets if dev_id]
     else:
-        student_info = connected_students.get(raw_target, {})
-        socket_target = student_info.get("sid", raw_target)
+        target_device_ids = []
 
-    # 2. UPDATE DATABASE LOGIC (Status Kunci Layar)
+    if not target_device_ids:
+        return
+
+    # 2. Ubah array device_id menjadi kumpulan sid aktif dari connected_students
+    target_sids = [
+        connected_students[dev_id]["sid"]
+        for dev_id in target_device_ids
+        if dev_id in connected_students and connected_students[dev_id].get("sid")
+    ]
+
+    # 3. UPDATE DATABASE LOGIC (Status Kunci Layar secara batch)
     if action in ["lock", "unlock"]:
         is_locked = (action == "lock")
         msg = command.get("message", "DIKUNCI OLEH GURU") if is_locked else ""
         pwd = command.get("password", "") if is_locked else ""
-
-        if raw_target == "all":
-            target_device_ids = list(connected_students.keys())
-        else:
-            target_device_ids = [raw_target]
 
         update_clients_lock_status(
             device_ids=target_device_ids,
@@ -275,20 +277,18 @@ async def on_send_command(sid, data):
             password=pwd
         )
 
-    # 3. RECORD LOG & PELANGGARAN
-    record_activity_log(
-        client_id=raw_target,
+    # 4. RECORD LOG & PELANGGARAN (Insert many / batch)
+    record_activity_logs(
+        client_ids=target_device_ids,
         action_type=action,
         details=log_details,
         executed_by=executed_by,
         is_warning=is_warning
     )
 
-    # 4. KIRIM PERINTAH LEWAT WEBSOCKET
-    if socket_target == "all":
-        await sio.emit("command", command, skip_sid=list(teacher_sids), room=target_room)
-    elif socket_target:
-        await sio.emit("command", command, to=socket_target)
+    # 5. KIRIM PERINTAH LEWAT WEBSOCKET KE SETIAP SID TERKAIT
+    for target_sid in target_sids:
+        await sio.emit("command", command, to=target_sid)
 
 @sio.on("verify_unlock_password") # type: ignore
 async def on_verify_unlock_password(sid, data):
@@ -345,6 +345,7 @@ async def get_control(request: Request, response: Response):
     try:
         user = await get_current_user(request, response)
         mgmt_data = await get_management_data(user.get("role", ""))
+        print(f"[*] Data manajemen untuk groups {mgmt_data['groups']} ", flush=True)
 
         template_res =  templates.TemplateResponse(
             request=request,
@@ -353,6 +354,7 @@ async def get_control(request: Request, response: Response):
                 "user": user,
                 "users": mgmt_data["users"],
                 "rooms": mgmt_data["rooms"],
+                "groups": mgmt_data["groups"],
                 "clients": mgmt_data["clients"],
                 "roles": mgmt_data["roles"],
                 "installers": mgmt_data["installers"],
