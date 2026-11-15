@@ -34,7 +34,7 @@
 <div id="fullscreen-viewer" class="fixed inset-0 bg-black z-50 hidden flex-col items-center justify-center">
 
     <!-- Floating Toolbar / Tombol Pembantu (Atas) -->
-    <div class="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-900/90 border border-gray-800 rounded-2xl px-4 py-2 flex items-center gap-3 z-50 backdrop-blur-md shadow-2xl">
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-900/90 border border-gray-800 rounded-2xl px-4 py-2 flex items-center gap-3 z-50 shadow-2xl">
         <span id="fullscreen-hostname" class="text-xs font-bold text-indigo-300 flex items-center gap-1.5 mr-1 border-r border-gray-700 pr-3">
             <i data-lucide="monitor" class="w-4 h-4 text-indigo-400"></i>
             <span id="fullscreen-hostname-text">PC-NAME</span>
@@ -54,21 +54,21 @@
     <!-- Live Stream Gambar Layar Fullscreen -->
     <img id="fullscreen-img" class="w-full h-full object-contain bg-black" src="" alt="Fullscreen Stream">
 </div>
-<body class="bg-gray-950 text-white min-h-screen p-6 font-sans">
+<body class="bg-gray-950 text-white min-h-screen sm:p-6 p-3 font-sans">
     <!-- Header Control Bar -->
-    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-800 gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-indigo-400 flex items-center gap-2">
-                <i data-lucide="shield-check" class="w-7 h-7 text-indigo-500"></i>
+    <header class="flex justify-between items-center mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-gray-800 gap-3 sm:gap-4">
+        <div class="min-w-0">
+            <h1 class="text-base sm:text-2xl font-bold text-indigo-400 flex items-center gap-2 truncate">
+                <i data-lucide="shield-check" class="w-5 h-5 sm:w-7 sm:h-7 text-indigo-500 shrink-0"></i>
                 Watchers Control Center
             </h1>
             <p class="text-xs text-gray-400 mt-0.5">Monitoring & Kendali Real-time Lab Komputer</p>
         </div>
 
         <!-- Profil & Dropdown Pengguna -->
-        <div class="relative self-end sm:self-auto">
-            <button onclick="toggleProfileDropdown(event)" class="flex items-center gap-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 px-3 py-2 rounded-xl transition shadow-md">
-                <div class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center font-bold text-xs uppercase">
+        <div class="relative shrink-0">
+            <button onclick="toggleProfileDropdown(event)" class="flex items-center gap-1.5 sm:gap-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 p-1.5 sm:px-3 sm:py-2 rounded-xl transition shadow-md">
+                <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center font-bold text-xs uppercase">
                     {{ user.username[0] }}
                 </div>
                 <div class="text-left hidden sm:block">
@@ -79,7 +79,7 @@
             </button>
 
             <!-- Dropdown Menu Detail Profil -->
-            <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 py-2 divide-y divide-gray-800/80 backdrop-blur-md">
+            <div id="profile-dropdown" class="hidden absolute right-0 mt-2 w-56 max-w-[calc(100vw-1.5rem)] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl z-50 py-2 divide-y divide-gray-800/80">
                 <!-- Informasi Akun -->
                 <div class="px-4 py-2.5">
                     <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Akun Aktif</p>
@@ -91,11 +91,11 @@
 
                 <!-- Menu Umum (Edit Profil) -->
                 <div class="py-1">
-                    <button onclick="openEditProfileModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                    <button onclick="openEditProfileModal()" class="w-full text-left px-4 py-2.5 sm:py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                         <i data-lucide="user-cog" class="w-4 h-4 text-sky-400"></i>
                         <span>Edit Profil</span>
                     </button>
-                    <a href="/logs" class="w-full block text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                    <a href="/logs" class="w-full block text-left px-4 py-2.5 sm:py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                         <i data-lucide="scroll-text" class="w-4 h-4 text-emerald-400"></i>
                         <span>Aktivitas Log</span>
                     </a>
@@ -104,22 +104,22 @@
                 <!-- Menu Khusus Direktur & Developer -->
                 {% if user.role == 'admin' %}
                 <div class="py-1">
-                    <button onclick="openRoleModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                    <button onclick="openRoleModal()" class="w-full text-left px-4 py-2.5 sm:py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                         <i data-lucide="shield" class="w-4 h-4 text-purple-400"></i>
                         <span>Manajemen Jabatan</span>
                     </button>
 
-                    <button onclick="openGroupModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                    <button onclick="openGroupModal()" class="w-full text-left px-4 py-2.5 sm:py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                         <i data-lucide="folder-tree" class="w-4 h-4 text-emerald-400"></i>
                         <span>Manajemen Ruangan</span>
                     </button>
-                    <button onclick="openStaffModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                    <button onclick="openStaffModal()" class="w-full text-left px-4 py-2.5 sm:py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                         <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
                         <span>Manajemen Staff</span>
                     </button>
 
                     <!-- FITUR BARU: Konfigurasi Stream (Tepat diatas Logout) -->
-                    <button onclick="openStreamConfigModal()" class="w-full text-left px-4 py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
+                    <button onclick="openStreamConfigModal()" class="w-full text-left px-4 py-2.5 sm:py-2 text-xs text-gray-300 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                         <i data-lucide="sliders" class="w-4 h-4 text-amber-400"></i>
                         <span>Konfigurasi Stream</span>
                     </button>
@@ -128,7 +128,7 @@
 
                 <!-- Logout -->
                 <div class="py-1">
-                    <button onclick="handleLogout()" class="w-full text-left px-4 py-2 text-xs text-rose-400 hover:bg-rose-600 hover:text-white flex items-center gap-2.5 transition">
+                    <button onclick="handleLogout()" class="w-full text-left px-4 py-2.5 sm:py-2 text-xs text-rose-400 hover:bg-rose-600 hover:text-white flex items-center gap-2.5 transition">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
                         <span>Keluar</span>
                     </button>
@@ -137,10 +137,10 @@
         </div>
     </header>
 
-    <!-- Panel Tombol Kendali Utama (Flexbox Flexible Layout) -->
-    <section class="flex flex-wrap gap-3 mb-6">
+    <!-- Panel Tombol Kendali Utama (>= 640px: Flexbox Flexible Layout) -->
+    <section class="hidden sm:flex flex-wrap gap-3 mb-6">
 
-        <!-- 0. Update Client (Khusus Role Developer) -->
+        <!-- 0. Update Client (Khusus Role Admin) -->
         {% if user.role == 'admin' %}
         <button onclick="openOtaModal()" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-indigo-950/40 border border-gray-800 hover:border-indigo-600/50 rounded-2xl group transition shadow-lg">
             <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
@@ -174,7 +174,7 @@
             <span class="text-xs font-semibold text-gray-300 group-hover:text-emerald-300">Buka</span>
         </button>
 
-        <!-- 4. Kunjungi URL (Baru) -->
+        <!-- 4. Kunjungi URL -->
         <button onclick="openUrlModal('all', 'Semua PC')" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-sky-950/40 border border-gray-800 hover:border-sky-600/50 rounded-2xl group transition shadow-lg">
             <div class="w-10 h-10 rounded-xl bg-sky-600/20 border border-sky-500/30 text-sky-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
                 <i data-lucide="globe" class="w-5 h-5"></i>
@@ -182,7 +182,7 @@
             <span class="text-xs font-semibold text-gray-300 group-hover:text-sky-300">Kunjungi</span>
         </button>
 
-        <!-- 5. Ketik Otomatis (Baru) Khusus Developer -->
+        <!-- 5. Ketik Otomatis (Khusus Developer) -->
         {% if user.role == 'developer' %}
         <button onclick="openMacroModal('all', 'Semua PC')" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-purple-950/40 border border-gray-800 hover:border-purple-600/50 rounded-2xl group transition shadow-lg">
             <div class="w-10 h-10 rounded-xl bg-purple-600/20 text-gray-200 hover:text-white flex items-center justify-center mb-2 group-hover:scale-110 transition">
@@ -192,8 +192,7 @@
         </button>
         {% endif %}
 
-
-        <!-- 5. Matikan Semua -->
+        <!-- 6. Matikan Semua -->
         <button onclick="confirmShutdown('all', 'Semua PC')" class="flex-1 min-w-[130px] flex flex-col items-center justify-center p-3.5 bg-gray-900 hover:bg-rose-950/40 border border-gray-800 hover:border-rose-600/50 rounded-2xl group transition shadow-lg">
             <div class="w-10 h-10 rounded-xl bg-rose-600/20 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
                 <i data-lucide="power" class="w-5 h-5"></i>
@@ -204,7 +203,7 @@
     </section>
 
     <!-- Minimalist Clean Header Control Toolbar -->
-    <div class="bg-gray-900/80 border border-gray-800/90 rounded-2xl p-3 sm:p-4 backdrop-blur-xl shadow-xl mb-6 lg:hidden">
+    <div class="bg-gray-900/80 border border-gray-800/90 rounded-2xl p-3 sm:p-4 shadow-xl mb-6 lg:hidden">
         <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">  
             <!-- Sisi Kiri: Room Switcher & Live Online Count (Responsif HP & Tablet) -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto">
@@ -272,6 +271,73 @@
 
         </div>
     </div>
+
+    <!-- Panel Tombol Kendali Utama (< 640px: Modern Command Card) -->
+    <section id="mobile-control-panel" class="block sm:hidden relative overflow-hidden bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 border border-gray-800/90 rounded-2xl p-4 mb-6 shadow-xl shadow-black/40">
+        <!-- Subtle Ambient Glow -->
+        <div id="mobile-panel-glow" class="pointer-events-none absolute -top-12 -right-12 w-32 h-32 rounded-full bg-emerald-500/10 blur-2xl transition-colors duration-300"></div>
+
+        <!-- Header Card -->
+        <div class="flex items-center justify-between gap-2 mb-3.5">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-gray-800/80 border border-gray-700/60 flex items-center justify-center text-indigo-400 shadow-inner">
+                    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <h3 class="text-xs font-bold text-gray-100 tracking-wide">Perintah Kendali</h3>
+                    <p class="text-[10px] text-gray-400">Aksi cepat ke perangkat target</p>
+                </div>
+            </div>
+
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-gray-950/90 text-gray-300 border border-gray-800">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Semua PC
+            </span>
+        </div>
+
+        <!-- Dropdown Selector dengan Ikon Dinamis -->
+        <label for="mobile-control-action" class="sr-only">Pilih Perintah Kendali</label>
+        <div class="relative">
+            <div id="mobile-action-icon-wrap" class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-emerald-400 transition-colors duration-200">
+                <i data-lucide="message-square" class="w-4 h-4"></i>
+            </div>
+
+            <select id="mobile-control-action" onchange="updateMobileActionUI()"
+                class="w-full appearance-none bg-gray-950/90 hover:bg-gray-950 border border-gray-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-gray-100 text-xs font-semibold rounded-xl pl-10 pr-10 py-3 transition-all cursor-pointer shadow-inner">
+                {% if user.role == 'admin' %}
+                <option value="ota">Update Agent</option>
+                {% endif %}
+                <option value="message">Kirim Pesan</option>
+                <option value="lock">Kunci Layar</option>
+                <option value="unlock">Buka Kunci</option>
+                <option value="url">Kunjungi URL</option>
+                {% if user.role == 'developer' %}
+                <option value="macro">Ketik Otomatis</option>
+                {% endif %}
+                <option value="shutdown">Matikan PC</option>
+            </select>
+
+            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+                <div class="p-1 rounded-lg bg-gray-900 border border-gray-800">
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keterangan Singkat Perintah Terpilih -->
+        <p id="mobile-action-desc" class="mt-2.5 text-[11px] text-gray-400 leading-relaxed px-0.5">
+            Tampilkan pesan pengumuman atau teguran di layar siswa.
+        </p>
+
+        <!-- Tombol Eksekusi Adaptif -->
+        <button id="mobile-exec-btn" type="button" onclick="executeMobileControlAction()"
+            class="mt-3.5 w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white text-xs font-bold tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-emerald-950/50">
+            <span id="mobile-exec-btn-icon-wrap" class="flex items-center">
+                <i data-lucide="play" class="w-4 h-4"></i>
+            </span>
+            <span id="mobile-exec-btn-text">Eksekusi Pesan</span>
+        </button>
+    </section>
 
     <!-- Grid Kartu PC Siswa -->
     <main id="student-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -386,7 +452,7 @@
                     </div>
 
                     <!-- Overlay Terkunci -->
-                    <div class="lock-overlay {{ '' if client.is_locked else 'hidden' }} absolute inset-0 bg-black/95 rounded-lg flex flex-col items-center justify-center gap-2 border border-yellow-600/40 z-20 backdrop-blur-md">
+                    <div class="lock-overlay {{ '' if client.is_locked else 'hidden' }} absolute inset-0 bg-black/95 rounded-lg flex flex-col items-center justify-center gap-2 border border-yellow-600/40 z-20">
                         <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-yellow-400 shadow-lg">
                             <i data-lucide="lock" class="w-6 h-6"></i>
                         </div>
@@ -435,7 +501,7 @@
                         <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
                     </button>
 
-                    <div id="dropdown-{{ client.id }}" class="dropdown-menu hidden absolute bottom-full left-0 right-0 mt-1.5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 py-1.5 backdrop-blur-md">
+                    <div id="dropdown-{{ client.id }}" class="dropdown-menu hidden absolute bottom-full left-0 right-0 mt-1.5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 py-1.5">
                         <button onclick="openFullscreenView('{{ client.id }}', '{{ client.name }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                             <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-blue-400"></i> Fullscreen View
                         </button>
@@ -980,35 +1046,27 @@
             connectedPcs.add(id);
             ensureLiveStatusPanel();
 
-            // Pengolahan Gambar
+            const LOCK_MARKER_B64 = "V0FUQ0hFUlNfTE9DS0VEX1NDUkVFTg==";
             let imageUrl = null;
             let hasImage = false;
+            let isLockedByMarker = false;
 
-            if (data.image) {
-                hasImage = true;
-                if (typeof data.image === 'string') {
-                    imageUrl = data.image.startsWith('data:image/')
-                        ? data.image
-                        : `data:image/webp;base64,${data.image}`;
-                } else if (data.image instanceof Blob || data.image instanceof ArrayBuffer || ArrayBuffer.isView(data.image)) {
-                    const blob = data.image instanceof Blob
-                        ? data.image
-                        : new Blob([data.image], { type: 'image/webp' });
-
-                    if (objectUrlCache[id]) {
-                        URL.revokeObjectURL(objectUrlCache[id]);
-                    }
-
-                    imageUrl = URL.createObjectURL(blob);
-                    objectUrlCache[id] = imageUrl;
+            // Pengolahan Gambar (Hanya String Base64)
+            if (typeof data.image === 'string' && data.image.trim() !== '') {
+                const rawImg = data.image.trim();
+                if (rawImg === LOCK_MARKER_B64) {
+                    isLockedByMarker = true;
                 } else {
-                    hasImage = false;
+                    hasImage = true;
+                    imageUrl = rawImg.startsWith('data:image/')
+                        ? rawImg
+                        : `data:image/webp;base64,${rawImg}`;
                 }
             }
 
             const openWindows = data.telemetry?.open_windows || [];
             activeAppsData[id] = openWindows;
-            const isLocked = Boolean(data.is_locked || data.isLocked);
+            const isLocked = Boolean(data.is_locked || data.isLocked || isLockedByMarker);
 
             if (activeSid === id) {
                 const fsImg = document.getElementById('fullscreen-img');
@@ -1032,7 +1090,10 @@
                 lockOverlay.classList.toggle('hidden', !isLocked);
             }
 
-            if (hasImage) {
+            if (isLocked) {
+                imgElem.classList.add('hidden');
+                if (spinnerOverlay) spinnerOverlay.classList.add('hidden');
+            } else if (hasImage) {
                 imgElem.src = imageUrl;
                 imgElem.classList.remove('hidden');
                 if (spinnerOverlay) spinnerOverlay.classList.add('hidden');
@@ -1172,6 +1233,120 @@
                 dropdown.classList.add('hidden');
             }
         });
+
+        const MOBILE_ACTION_CONFIG = {
+            ota: {
+                icon: "refresh-cw",
+                iconColor: "text-indigo-400",
+                glowColor: "bg-indigo-500/10",
+                desc: "Perbarui versi aplikasi agent secara jarak jauh.",
+                btnText: "Jalankan Update",
+                btnClass: "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-950/50"
+            },
+            message: {
+                icon: "message-square",
+                iconColor: "text-emerald-400",
+                glowColor: "bg-emerald-500/10",
+                desc: "Tampilkan pesan pengumuman atau teguran di layar siswa.",
+                btnText: "Kirim Pesan",
+                btnClass: "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950/50"
+            },
+            lock: {
+                icon: "lock",
+                iconColor: "text-amber-400",
+                glowColor: "bg-amber-500/10",
+                desc: "Kunci layar penuh dan blokir pintasan keyboard siswa.",
+                btnText: "Kunci Layar",
+                btnClass: "bg-amber-600 hover:bg-amber-500 shadow-amber-950/50"
+            },
+            unlock: {
+                icon: "unlock",
+                iconColor: "text-teal-400",
+                glowColor: "bg-teal-500/10",
+                desc: "Buka kunci layar dan kembalikan akses kontrol siswa.",
+                btnText: "Buka Kunci",
+                btnClass: "bg-teal-600 hover:bg-teal-500 shadow-teal-950/50"
+            },
+            url: {
+                icon: "globe",
+                iconColor: "text-sky-400",
+                glowColor: "bg-sky-500/10",
+                desc: "Buka tautan website secara otomatis di browser siswa.",
+                btnText: "Kunjungi URL",
+                btnClass: "bg-sky-600 hover:bg-sky-500 shadow-sky-950/50"
+            },
+            macro: {
+                icon: "keyboard",
+                iconColor: "text-purple-400",
+                glowColor: "bg-purple-500/10",
+                desc: "Jalankan skrip pengetikan otomatis pada perangkat target.",
+                btnText: "Jalankan Makro",
+                btnClass: "bg-purple-600 hover:bg-purple-500 shadow-purple-950/50"
+            },
+            shutdown: {
+                icon: "power",
+                iconColor: "text-rose-400",
+                glowColor: "bg-rose-500/10",
+                desc: "Matikan daya komputer siswa secara jarak jauh.",
+                btnText: "Matikan Perangkat",
+                btnClass: "bg-rose-600 hover:bg-rose-500 shadow-rose-950/50"
+            }
+        };
+
+        function updateMobileActionUI() {
+            const selectEl = document.getElementById("mobile-control-action");
+            if (!selectEl) return;
+
+            const meta = MOBILE_ACTION_CONFIG[selectEl.value] || MOBILE_ACTION_CONFIG.message;
+            const iconWrap = document.getElementById("mobile-action-icon-wrap");
+            const glowEl = document.getElementById("mobile-panel-glow");
+            const descEl = document.getElementById("mobile-action-desc");
+            const btnEl = document.getElementById("mobile-exec-btn");
+            const btnIconWrap = document.getElementById("mobile-exec-btn-icon-wrap");
+            const btnTextEl = document.getElementById("mobile-exec-btn-text");
+
+            if (iconWrap) {
+                iconWrap.className = `pointer-events-none absolute inset-y-0 left-3.5 flex items-center transition-colors duration-200 ${meta.iconColor}`;
+                iconWrap.innerHTML = `<i data-lucide="${meta.icon}" class="w-4 h-4"></i>`;
+            }
+
+            if (glowEl) {
+                glowEl.className = `pointer-events-none absolute -top-12 -right-12 w-32 h-32 rounded-full blur-2xl transition-colors duration-300 ${meta.glowColor}`;
+            }
+
+            if (descEl) descEl.textContent = meta.desc;
+
+            if (btnEl) {
+                btnEl.className = `mt-3.5 w-full py-3 px-4 active:scale-[0.99] text-white text-xs font-bold tracking-wide rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg ${meta.btnClass}`;
+            }
+
+            if (btnIconWrap) {
+                btnIconWrap.innerHTML = `<i data-lucide="${meta.icon}" class="w-4 h-4"></i>`;
+            }
+
+            if (btnTextEl) btnTextEl.textContent = meta.btnText;
+
+            if (typeof lucide !== "undefined") lucide.createIcons();
+        }
+
+        function executeMobileControlAction() {
+            const action = document.getElementById("mobile-control-action")?.value;
+            const handlers = {
+                ota: () => openOtaModal(),
+                message: () => openMessageModal("all", "Semua PC"),
+                lock: () => openLockModal("all"),
+                unlock: () => unlockScreen("all"),
+                url: () => openUrlModal("all", "Semua PC"),
+                macro: () => openMacroModal("all", "Semua PC"),
+                shutdown: () => confirmShutdown("all", "Semua PC")
+            };
+
+            if (handlers[action]) {
+                handlers[action]();
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", updateMobileActionUI);
 
         // Inisialisasi ikon saat pertama kali dibuka
         lucide.createIcons();
