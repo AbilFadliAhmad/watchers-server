@@ -67,6 +67,22 @@ def init_db():
     # Membuat Index untuk mempercepat query pencarian awalan (LIKE 'dm%')
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_clients_hostname ON clients(name)")
 
+    # 6. TABEL BARU: client_diagnostics (Menyimpan Data Diagnostik Klien)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS client_diagnostics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,   
+            client_id INTEGER NOT NULL UNIQUE,
+            health_status TEXT DEFAULT 'Tidak Diketahui',
+            health_json TEXT DEFAULT '{}',
+            storage_json TEXT DEFAULT '[]',
+            apps_json TEXT DEFAULT '[]',
+            apps_count INTEGER DEFAULT 0,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_client_diagnostics_client_id ON client_diagnostics(client_id)")
+
     # 6. Tabel agent_installers
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS agent_installers (
@@ -155,7 +171,7 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_violations_executed_by ON user_violations(executed_by)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_violations_created_at ON user_violations(created_at)")
 
-    # 1. Membuat tabel (ID wajib angka 1)
+    # Membuat tabel (ID wajib angka 1)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS client_password (
             id INTEGER PRIMARY KEY CHECK (id = 1),

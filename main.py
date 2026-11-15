@@ -1,3 +1,5 @@
+import asyncio
+import time
 from fastapi import FastAPI, File,Response, status, Request, HTTPException, UploadFile, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -6,7 +8,7 @@ import socketio
 import os
 import shutil
 from auth import (router as auth_router)
-from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_get_info_device, verify_client_password
+from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_diagnostics, get_all_diagnostics, verify_client_password
 from management import (router as management_router, get_management_data, fetch_stream_config_from_db, get_logs_data, record_activity_logs)
 from auth_middleware import get_current_user
 from typing import Optional
@@ -156,9 +158,10 @@ async def on_register_teacher(sid, data):
 async def on_register_student(sid, data):
     hostname = data.get("hostname", "Unknown-PC")
     device_id = data.get("device_id", hostname) # Fallback ke hostname jika device_id kosong
+    diagnostics = data.get("diagnostics")
 
     # 2. Registrasi / Upsert ke Database SQLite Server & Ambil Status Lock
-    device_status = upsert_client_and_get_info_device(device_id, hostname)
+    device_status = upsert_client_and_diagnostics(device_id, hostname, diagnostics)
     name = device_status.get("name", hostname)
     student_room = name.split("-")[0].lower()
 
@@ -289,6 +292,76 @@ async def on_send_command(sid, data):
     # 5. KIRIM PERINTAH LEWAT WEBSOCKET KE SETIAP SID TERKAIT
     for target_sid in target_sids:
         await sio.emit("command", command, to=target_sid)
+
+# Menyimpan timestamp mulai (detik presisi tinggi) per device_id
+_diag_timers: dict[str, float] = {}
+
+
+@sio.on("request_all_diagnostics")  # type: ignore
+async def on_request_all_diagnostics(sid, data=None):
+    target_id = data.get("device_id", "all") if isinstance(data, dict) else "all"
+    include_apps = data.get("include_apps", True) if isinstance(data, dict) else True
+
+    now = time.perf_counter()
+
+    if target_id == "all":
+        for dev_id in connected_students.keys():
+            _diag_timers[dev_id] = now
+        await sio.emit("request_pc_diagnostics", {"include_apps": include_apps}, room="all")
+    else:
+        student = connected_students.get(target_id)
+        if student and student.get("sid"):
+            _diag_timers[target_id] = now
+            await sio.emit("request_pc_diagnostics", {"include_apps": include_apps}, to=student["sid"])
+
+
+@sio.on("report_pc_diagnostics")  # type: ignore
+async def on_report_pc_diagnostics(sid, data):
+    t_recv = time.perf_counter()
+
+    if not isinstance(data, dict):
+        return
+
+    device_id = data.get("device_id")
+    if not device_id:
+        for dev_id, info in connected_students.items():
+            if info.get("sid") == sid:
+                device_id = dev_id
+                break
+    if not device_id:
+        return
+
+    student = connected_students.get(device_id, {})
+    hostname = student.get("name", device_id)
+
+    await asyncio.to_thread(upsert_client_and_diagnostics, device_id, hostname, data)
+
+    all_devices = await asyncio.to_thread(get_all_diagnostics)
+    updated_device = next((d for d in all_devices if d["client_id"] == device_id), None)
+
+    if updated_device:
+        await sio.emit("pc_diagnostics_updated", updated_device)
+
+    # Hitung & tampilkan kecepatan di terminal server
+    t_done = time.perf_counter()
+    t_start = _diag_timers.pop(device_id, None)
+    db_ms = round((t_done - t_recv) * 1000, 2)
+
+    if t_start is not None:
+        rtt_ms = round((t_recv - t_start) * 1000, 2)
+        total_ms = round((t_done - t_start) * 1000, 2)
+        print(
+            f"[DIAG SPEED] {hostname} ({device_id}) | "
+            f"Socket+Scan RTT: {rtt_ms} ms | DB+Broadcast: {db_ms} ms | Total: {total_ms} ms",
+            flush=True,
+        )
+    else:
+        # Terjadi saat PC baru pertama kali connect (register_student / auto-report)
+        print(
+            f"[DIAG SPEED] {hostname} ({device_id}) | "
+            f"Initial Report | DB+Broadcast: {db_ms} ms",
+            flush=True,
+        )
 
 @sio.on("verify_unlock_password") # type: ignore
 async def on_verify_unlock_password(sid, data):
@@ -422,6 +495,27 @@ async def get_logs_page(
                 "selected_action": action or "",
                 "selected_time_range": selected_time
             }
+        )
+    except HTTPException as e:
+        if e.status_code == status.HTTP_401_UNAUTHORIZED:
+            return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        raise e
+    
+@app.get("/health", response_class=HTMLResponse)
+async def devices_page(request: Request, response: Response):
+    try:
+        user = await get_current_user(request, response)
+
+        devices = await asyncio.to_thread(get_all_diagnostics)
+        print(f"[*] Data devices untuk {user.get('username')}: {devices}", flush=True)
+        return templates.TemplateResponse(
+            request=request,
+            name="health.html",
+            context={
+                "request": request,
+                "user": user,
+                "devices": devices,
+            },
         )
     except HTTPException as e:
         if e.status_code == status.HTTP_401_UNAUTHORIZED:

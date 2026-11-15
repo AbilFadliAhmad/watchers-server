@@ -1,35 +1,147 @@
 import sqlite3
 import re
 
-def upsert_client_and_get_info_device(device_id: str, hostname: str) -> dict:
+import json
+import sqlite3
+from datetime import datetime
+
+
+def get_all_diagnostics() -> list[dict]:
+    """Mengambil seluruh kolom client_diagnostics dan nama dari tabel users."""
+    conn = sqlite3.connect("watchers.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    devices = []
+
+    try:
+        # Ganti 'users' ke 'clients' jika tabel perangkat Anda bernama clients
+        cursor.execute("""
+            SELECT
+                d.*,
+                c.name AS name
+            FROM client_diagnostics d
+            LEFT JOIN clients c ON d.client_id = c.id
+            ORDER BY c.name ASC
+        """)
+        rows = cursor.fetchall()
+        print(f"[+] get_all_diagnostics: {len(rows)} records fetched.", flush=True)
+
+        for row in rows:
+            item = dict(row)
+            item["name"] = item.get("name") or item["client_id"]
+
+            try:
+                item["health"] = json.loads(item["health_json"]) if item.get("health_json") else None
+            except (json.JSONDecodeError, TypeError):
+                item["health"] = None
+
+            try:
+                item["storage"] = json.loads(item["storage_json"]) if item.get("storage_json") else []
+            except (json.JSONDecodeError, TypeError):
+                item["storage"] = []
+
+            try:
+                item["apps"] = json.loads(item["apps_json"]) if item.get("apps_json") else []
+            except (json.JSONDecodeError, TypeError):
+                item["apps"] = []
+
+            # Hapus string JSON mentah agar objek lebih ringkas saat dikirim ke template
+            item.pop("health_json", None)
+            item.pop("storage_json", None)
+            item.pop("apps_json", None)
+
+            devices.append(item)
+    except Exception as e:
+        print(f"[!] Error get_all_diagnostics: {e}", flush=True)
+    finally:
+        conn.close()
+
+    return devices
+
+def upsert_client_and_diagnostics(
+    device_id: str, hostname: str, diagnostics: dict | None = None
+) -> dict:
     """
-    Menyimpan client baru ke DB jika belum ada (nama = hostname).
-    Jika sudah ada, perbarui namanya dan ambil status lock saat ini.
+    Menyimpan client baru ke DB jika belum ada (ON CONFLICT DO NOTHING),
+    serta menyimpan atau memperbarui data diagnostik klien (ON CONFLICT DO UPDATE).
+    Mengembalikan informasi status lock dan nama client terkini.
     """
     conn = sqlite3.connect("watchers.db")
+    conn.execute("PRAGMA foreign_keys = ON;")
     cursor = conn.cursor()
     try:
-        # Insert client baru jika belum ada, atau update nama jika hostname berubah
+        # 1. Insert client baru jika belum ada; abaikan jika sudah terdaftar
         cursor.execute("""
             INSERT INTO clients (id, name, is_locked, message, password)
             VALUES (?, ?, 0, '', '')
             ON CONFLICT(id) DO NOTHING
         """, (device_id, hostname))
+
+        # 2. Insert atau Update data diagnostik jika dikirim oleh agent
+        if isinstance(diagnostics, dict):
+            health = diagnostics.get("health") or {}
+            storage = diagnostics.get("storage") or []
+            apps = diagnostics.get("apps")
+
+            health_status = (
+                health.get("status", "Sehat") if isinstance(health, dict) else "Sehat"
+            )
+            health_json = json.dumps(health, ensure_ascii=False)
+            storage_json = json.dumps(storage, ensure_ascii=False)
+
+            has_apps = isinstance(apps, list)
+            apps_json = json.dumps(apps, ensure_ascii=False) if has_apps else None
+            apps_count = len(apps) if has_apps else 0
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            cursor.execute("""
+                INSERT INTO client_diagnostics (
+                    client_id, health_status, health_json, storage_json, apps_json, apps_count, updated_at
+                )
+                VALUES (?, ?, ?, ?, COALESCE(?, '[]'), ?, ?)
+                ON CONFLICT(client_id) DO UPDATE SET
+                    health_status = excluded.health_status,
+                    health_json = excluded.health_json,
+                    storage_json = excluded.storage_json,
+                    apps_json = CASE
+                        WHEN ? IS NOT NULL THEN excluded.apps_json
+                        ELSE client_diagnostics.apps_json
+                    END,
+                    apps_count = CASE
+                        WHEN ? IS NOT NULL THEN excluded.apps_count
+                        ELSE client_diagnostics.apps_count
+                    END,
+                    updated_at = excluded.updated_at
+            """, (
+                device_id,
+                health_status,
+                health_json,
+                storage_json,
+                apps_json,
+                apps_count,
+                now_str,
+                apps_json,
+                apps_json,
+            ))
+
         conn.commit()
 
-        # Ambil status lock terkini
-        cursor.execute("SELECT is_locked, message, password, name FROM clients WHERE id = ?", (device_id,))
+        # 3. Ambil status lock terkini (output return tetap sama)
+        cursor.execute(
+            "SELECT is_locked, message, password, name FROM clients WHERE id = ?",
+            (device_id,),
+        )
         row = cursor.fetchone()
-        
+
         if row:
             return {
                 "is_locked": bool(row[0]),
                 "message": row[1] or "DIKUNCI OLEH GURU",
                 "password": row[2] or "",
-                "name": row[3] or hostname
+                "name": row[3] or hostname,
             }
     except Exception as e:
-        print(f"[!] Error upsert_client_and_get_status: {e}")
+        print(f"[!] Error upsert_client_and_diagnostics: {e}")
     finally:
         conn.close()
 

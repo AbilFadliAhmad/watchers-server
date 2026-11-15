@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchers Health</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+    @keyframes watchersLoadingSlide {
+        0% { transform: translateX(-100%); }
+        50% { transform: translateX(100%); }
+        100% { transform: translateX(250%); }
+    }
+    .watchers-loading-bar {
+        animation: watchersLoadingSlide 1.35s infinite ease-in-out;
+    }
+</style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen flex flex-col p-3 sm:p-6">
+
+    <!-- 1. HEADER CONTROL BAR: WATCHERS HEALTH & DASHBOARD        -->
+    <!-- ========================================================= -->
+    <header class=" w-full mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-gray-800 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-emerald-400 flex items-center gap-2">
+                <i data-lucide="heart-pulse" class="w-7 h-7 text-emerald-500"></i>
+                Watchers Health
+            </h1>
+            <p class="text-xs text-gray-400 mt-0.5">Pemantauan Kesehatan Perangkat Client, Penyimpanan, &amp; Aplikasi Terinstal</p>
+        </div>
+
+        <!-- Tombol Kembali ke Dashboard -->
+        <a href="/" class="group inline-flex items-center gap-2.5 px-4 py-2 bg-gray-900/80 hover:bg-gray-800 text-gray-300 hover:text-white border border-gray-800 hover:border-indigo-500/50 rounded-xl transition-all duration-200 shadow-sm text-xs font-medium backdrop-blur-sm">
+            <i data-lucide="arrow-left" class="w-4 h-4 text-indigo-400 group-hover:-translate-x-1 transition-transform duration-200"></i>
+            <span>Dashboard</span>
+        </a>
+    </header>
+
+    <!-- ========================================================= -->
+    <!-- 2. BAR PENCARIAN, TOTAL PERANGKAT, & TOMBOL REFRESH       -->
+    <!-- ========================================================= -->
+    <section class="w-full mx-auto mb-5">
+        <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+            <div class="relative flex-1">
+                <i data-lucide="search" class="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input type="text" id="device-search-input" onkeyup="filterDeviceCards()"
+                    placeholder="Cari nama komputer atau ID perangkat..."
+                    class="w-full h-9 bg-gray-950 border border-gray-800 focus:border-indigo-500 text-xs text-gray-100 rounded-md pl-10 pr-3.5 focus:outline-none transition">
+            </div>
+
+            <div class="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
+                <div class="h-9 flex items-center gap-2 px-3 bg-gray-950 border border-gray-800 rounded-md text-xs text-gray-300">
+                    <span class="text-gray-400">Total Perangkat:</span>
+                    <span id="stat-total-pc" class="font-mono font-bold text-indigo-400">{{ devices | length }} PC</span>
+                </div>
+
+                <button type="button" id="btn-refresh-all" onclick="requestRefreshAll()"
+                        class="h-8 inline-flex items-center justify-center gap-2 px-4 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-60 text-white font-semibold text-xs rounded-md shadow-lg shadow-indigo-950/50 transition cursor-pointer">
+                    <i data-lucide="refresh-cw" id="icon-refresh-all" class="w-3.5 h-3.5"></i>
+                    <span id="text-refresh-all">Refresh Data PC</span>
+                </button>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Tombol Panduan Membaca Kesehatan Perangkat (Tepat di bawah Search Bar) -->
+    <div class="w-full mx-auto -mt-2 mb-5 flex items-center justify-between gap-2">
+        <button type="button" onclick="openHealthGuideModal()"
+            class="group inline-flex items-center gap-2 px-3.5 py-2 bg-gray-900/90 hover:bg-gray-800 text-gray-300 hover:text-white border border-gray-800 hover:border-emerald-500/50 rounded-xl text-xs font-medium transition cursor-pointer shadow-sm">
+            <i data-lucide="book-open" class="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform"></i>
+            <span>Panduan Membaca Kesehatan Perangkat</span>
+            <span class="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-950/70 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono">
+                7 Panduan
+            </span>
+        </button>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 3. LIST / GRID SELURUH KOMPUTER                           -->
+    <!-- ========================================================= -->
+    <main id="devices-grid" class="w-full mx-auto grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% if devices %}
+            {% for dev in devices %}
+            <article id="device-card-{{ dev.client_id }}"
+                data-search="{{ dev.name|lower }} {{ dev.client_id|lower }}"
+                class="device-card bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col justify-between transition">
+                
+                <div>
+                    <!-- Header Kartu: Nama PC, Sistem Operasi, & Badge Kesehatan -->
+                    <div class="flex items-start justify-between gap-2 pb-3 mb-3.5 border-b border-gray-800/80">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                                <i data-lucide="monitor" class="w-4 h-4"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h2 class="text-sm font-bold text-white truncate" title="{{ dev.name }}">
+                                    {{ dev.name }}
+                                </h2>
+                                <p class="text-[11px] text-gray-400 truncate">
+                                    {% if dev.health and dev.health.os %}
+                                        {{ dev.health.os }} •
+                                    {% endif %}
+                                    <span class="font-mono text-gray-500">{{ dev.client_id }}</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Badge Status Kesehatan PC -->
+                        {% set h_status = dev.health_status or 'Belum Dipindai' %}
+                        <span id="health-badge-{{ dev.client_id }}"
+                            class="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border
+                            {% if h_status == 'Sehat' %}
+                                bg-emerald-950/60 text-emerald-400 border-emerald-500/30
+                            {% elif h_status == 'Peringatan' %}
+                                bg-amber-950/60 text-amber-400 border-amber-500/30
+                            {% elif h_status == 'Kritis' %}
+                                bg-rose-950/60 text-rose-400 border-rose-500/30
+                            {% else %}
+                                bg-gray-800 text-gray-400 border-gray-700
+                            {% endif %}">
+                            {{ h_status }}
+                        </span>
+                    </div>
+
+                    <!-- Bagian Kesehatan Hardware & Sistem Detail -->
+                    <div id="health-section-{{ dev.client_id }}" class="mb-4 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                                <i data-lucide="activity" class="w-3.5 h-3.5 text-indigo-400"></i>
+                                Kesehatan Perangkat
+                            </p>
+                            {% if dev.health and dev.health.uptime %}
+                            <span class="text-[10px] font-mono text-gray-500">Uptime: {{ dev.health.uptime }}</span>
+                            {% endif %}
+                        </div>
+
+                        {% if dev.health %}
+                            <!-- 1. Banner Alasan Diagnosis (Otomatis muncul jika ada peringatan/masalah) -->
+                            {% if dev.health.issues %}
+                            <div class="rounded-xl p-2.5 text-[11px] border space-y-1
+                                {% if dev.health_status == 'Kritis' %}
+                                    bg-rose-950/30 border-rose-500/30 text-rose-300
+                                {% elif dev.health_status == 'Peringatan' %}
+                                    bg-amber-950/30 border-amber-500/30 text-amber-300
+                                {% else %}
+                                    bg-sky-950/30 border-sky-500/30 text-sky-300
+                                {% endif %}">
+                                {% for issue in dev.health.issues %}
+                                <div class="flex items-start gap-1.5">
+                                    <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 mt-0.5"></i>
+                                    <span>{{ issue }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <!-- 2. Grid 3 Metrik Utama: CPU, RAM, & Jaringan (Ping) -->
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="bg-gray-950 border border-gray-800/90 rounded-xl p-2.5">
+                                    <p class="text-[10px] text-gray-500 truncate">
+                                        CPU{% if dev.health.cpu_temp_c %} • {{ dev.health.cpu_temp_c }}°C{% endif %}
+                                    </p>
+                                    <p class="text-xs font-bold font-mono text-gray-100 mt-0.5">
+                                        {{ dev.health.cpu_percent }}%
+                                    </p>
+                                </div>
+                                <div class="bg-gray-950 border border-gray-800/90 rounded-xl p-2.5">
+                                    <p class="text-[10px] text-gray-500 truncate">RAM ({{ dev.health.ram_percent }}%)</p>
+                                    <p class="text-xs font-bold font-mono text-gray-100 mt-0.5 truncate"
+                                       title="{{ dev.health.ram_used_gb }} / {{ dev.health.ram_total_gb }} GB">
+                                        {{ dev.health.ram_used_gb }}/{{ dev.health.ram_total_gb }}G
+                                    </p>
+                                </div>
+                                <div class="bg-gray-950 border border-gray-800/90 rounded-xl p-2.5">
+                                    {% set net = dev.health.network or {} %}
+                                    <p class="text-[10px] text-gray-500 truncate">
+                                        Net{% if net.ping_ms is not none %} • {{ net.ping_ms }}ms{% endif %}
+                                    </p>
+                                    <p class="text-xs font-bold mt-0.5 truncate
+                                        {% if net.status == 'Lancar' %}text-emerald-400
+                                        {% elif net.status == 'Sedang' %}text-sky-400
+                                        {% elif net.status == 'Lemot' %}text-amber-400
+                                        {% elif net.status == 'Putus' %}text-rose-400
+                                        {% else %}text-gray-300{% endif %}">
+                                        {{ net.status or '-' }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- 3. Kesehatan Fisik Penyimpanan (S.M.A.R.T. SSD / HDD) -->
+                            {% if dev.health.disks_health %}
+                            <div class="space-y-1.5">
+                                {% for d in dev.health.disks_health %}
+                                <div class="bg-gray-950 border border-gray-800/90 rounded-xl px-2.5 py-2 flex items-center justify-between gap-2 text-[11px]">
+                                    <div class="min-w-0">
+                                        <p class="text-gray-200 font-semibold truncate">
+                                            <span class="text-indigo-400 font-mono">[{{ d.media_type }}]</span> {{ d.name }}
+                                        </p>
+                                        <p class="text-[10px] text-gray-500 font-mono">
+                                            {% if d.temp_c %}Suhu: {{ d.temp_c }}°C{% else %}Suhu: -{% endif %}
+                                            {% if d.remaining_life_percent is not none %} • Sisa Umur: {{ d.remaining_life_percent }}%{% endif %}
+                                        </p>
+                                    </div>
+                                    <span class="shrink-0 font-bold text-[10px] uppercase px-2 py-0.5 rounded-md
+                                        {% if d.health_status == 'Sehat' %}bg-emerald-950/70 text-emerald-400
+                                        {% elif d.health_status == 'Peringatan' %}bg-amber-950/70 text-amber-400
+                                        {% else %}bg-rose-950/70 text-rose-400{% endif %}">
+                                        {{ d.health_status }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            <!-- 4. Kesehatan Baterai (Otomatis muncul jika perangkat adalah Laptop) -->
+                            {% if dev.health.battery %}
+                            <div class="bg-gray-950 border border-gray-800/90 rounded-xl px-2.5 py-2 flex items-center justify-between gap-2 text-[11px]">
+                                <div class="min-w-0">
+                                    <p class="text-gray-200 font-semibold">
+                                        Baterai {{ dev.health.battery.charge_percent }}%
+                                        {% if dev.health.battery.plugged_in %}<span class="text-emerald-400 text-[10px]">(Charging)</span>{% endif %}
+                                    </p>
+                                    {% if dev.health.battery.full_charge_capacity_mwh and dev.health.battery.design_capacity_mwh %}
+                                    <p class="text-[10px] text-gray-500 font-mono truncate">
+                                        {{ dev.health.battery.full_charge_capacity_mwh }} / {{ dev.health.battery.design_capacity_mwh }} mWh
+                                    </p>
+                                    {% endif %}
+                                </div>
+                                <span class="shrink-0 font-bold text-[10px] px-2 py-0.5 rounded-md
+                                    {% if dev.health.battery.health_status == 'Sehat' %}bg-emerald-950/70 text-emerald-400
+                                    {% elif dev.health.battery.health_status == 'Peringatan' %}bg-amber-950/70 text-amber-400
+                                    {% else %}bg-rose-950/70 text-rose-400{% endif %}">
+                                    {% if dev.health.battery.health_percent is not none %}
+                                        Health {{ dev.health.battery.health_percent }}%
+                                    {% else %}
+                                        {{ dev.health.battery.health_status }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+
+                            <!-- 5. Lipatan Detail: Top 3 Proses (RAM & CPU), Driver Error, & Spesifikasi -->
+                            <details class="group bg-gray-950/70 border border-gray-800/80 rounded-xl px-3 py-2 text-[11px]">
+                                <summary class="cursor-pointer list-none flex items-center justify-between text-gray-400 hover:text-gray-200 font-semibold select-none">
+                                    <span>Detail Proses, Jaringan, &amp; Spesifikasi</span>
+                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform group-open:rotate-180"></i>
+                                </summary>
+
+                                <div class="mt-2.5 pt-2.5 border-t border-gray-800/80 space-y-2.5 text-[11px] text-gray-400">
+                                    <!-- Top 3 Proses Pemakan RAM & CPU -->
+                                    {% if dev.health.top_processes %}
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div class="bg-gray-900/70 border border-gray-800/70 rounded-lg p-2">
+                                            <p class="text-[10px] font-bold text-indigo-400 uppercase mb-1">Top 3 RAM</p>
+                                            {% for p in dev.health.top_processes.top_ram or [] %}
+                                            <div class="flex justify-between gap-1 text-[10px] font-mono">
+                                                <span class="text-gray-300 truncate" title="{{ p.name }}">{{ p.name }}</span>
+                                                <span class="text-gray-400 shrink-0">{{ p.ram_mb }}M</span>
+                                            </div>
+                                            {% else %}
+                                            <p class="text-[10px] text-gray-500">-</p>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="bg-gray-900/70 border border-gray-800/70 rounded-lg p-2">
+                                            <p class="text-[10px] font-bold text-amber-400 uppercase mb-1">Top 3 CPU</p>
+                                            {% for p in dev.health.top_processes.top_cpu or [] %}
+                                            <div class="flex justify-between gap-1 text-[10px] font-mono">
+                                                <span class="text-gray-300 truncate" title="{{ p.name }}">{{ p.name }}</span>
+                                                <span class="text-gray-400 shrink-0">{{ p.cpu_percent }}%</span>
+                                            </div>
+                                            {% else %}
+                                            <p class="text-[10px] text-gray-500">-</p>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Daftar Driver Bermasalah (Jika Ada) -->
+                                    {% if dev.health.driver_errors %}
+                                    <div class="bg-amber-950/25 border border-amber-500/30 rounded-lg p-2 space-y-0.5">
+                                        <p class="text-[10px] font-bold text-amber-400 uppercase">Driver Bermasalah</p>
+                                        {% for drv in dev.health.driver_errors %}
+                                        <p class="text-[10px] text-amber-200 truncate" title="{{ drv.name }}">
+                                            • {{ drv.name }} (Code {{ drv.error_code }})
+                                        </p>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Spesifikasi Hardware & Jaringan Lengkap -->
+                                    <div class="space-y-1">
+                                        <p class="truncate" title="{{ dev.health.cpu_name }}">
+                                            <span class="text-gray-500">CPU:</span> {{ dev.health.cpu_name or '-' }}
+                                        </p>
+                                        <p class="truncate" title="{{ dev.health.gpu_name }}">
+                                            <span class="text-gray-500">GPU:</span> {{ dev.health.gpu_name or '-' }}
+                                        </p>
+                                        <p>
+                                            <span class="text-gray-500">OS:</span>
+                                            <span class="text-gray-300">{{ dev.health.os or '-' }}</span>
+                                        </p>
+                                        {% if dev.health.network %}
+                                        {% set net = dev.health.network %}
+                                        <p class="truncate" title="{{ net.interface }} ({{ net.ip }})">
+                                            <span class="text-gray-500">Jaringan:</span>
+                                            <span class="font-mono text-gray-300">
+                                                {{ net.interface }} • {{ net.ip }}{% if net.speed_mbps %} ({{ net.speed_mbps }} Mbps){% endif %}
+                                            </span>
+                                        </p>
+                                        <p>
+                                            <span class="text-gray-500">Kualitas Internet:</span>
+                                            <span class="font-mono text-gray-300">
+                                                {{ net.status }}{% if net.ping_ms is not none %} • {{ net.ping_ms }} ms{% endif %} (Loss {{ net.loss_percent }}%)
+                                            </span>
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </details>
+                        {% else %}
+                        <div class="bg-gray-950/70 border border-dashed border-gray-800 rounded-xl p-3 text-center text-[11px] text-gray-500">
+                            Belum ada data kesehatan tersimpan
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Bagian Sisa Penyimpanan Komputer (Local Disk C:, D:, dst.) -->
+                    <div id="storage-section-{{ dev.client_id }}" class="mb-4">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
+                            <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-sky-400"></i>
+                            Penyimpanan Komputer
+                        </p>
+
+                        {% if dev.storage %}
+                        <div class="space-y-2">
+                            {% for disk in dev.storage %}
+                            {% set pct = disk.percent_used | default(0) %}
+                            <div class="bg-gray-950 border border-gray-800/90 rounded-xl p-2.5">
+                                <div class="flex items-center justify-between text-xs mb-1.5 gap-2">
+                                    <span class="font-semibold text-gray-200 truncate">
+                                        {{ disk.label }}
+                                    </span>
+                                    <span class="font-mono text-[11px] shrink-0
+                                        {% if pct >= 90 %}text-rose-400 font-bold
+                                        {% elif pct >= 75 %}text-amber-400 font-semibold
+                                        {% else %}text-emerald-400 font-semibold{% endif %}">
+                                        Sisa {{ disk.free_gb }} GB <span class="text-gray-500 font-normal">/ {{ disk.total_gb }} GB</span>
+                                    </span>
+                                </div>
+                                <div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all
+                                        {% if pct >= 90 %}bg-rose-500
+                                        {% elif pct >= 75 %}bg-amber-500
+                                        {% else %}bg-emerald-500{% endif %}"
+                                        style="width: {{ pct }}%;"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="bg-gray-950/70 border border-dashed border-gray-800 rounded-xl p-3 text-center text-[11px] text-gray-500">
+                            Belum ada data penyimpanan partisi
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Footer Kartu: Waktu Update & Tombol List Aplikasi -->
+                <div class="pt-3 border-t border-gray-800/80 flex items-center justify-between gap-2">
+                    <!-- Slot Kiri: Teks Update ATAU Indikator Loading Bar -->
+                    <div class="flex-1 min-w-0">
+                        <span id="updated-at-{{ dev.client_id }}" class="block text-[10px] text-gray-500 truncate">
+                            Update: {{ dev.updated_at or 'Belum ada data' }}
+                        </span>
+
+                        <div id="loading-bar-{{ dev.client_id }}"
+                             title="Memindai perangkat..."
+                             class="hidden w-full h-1.5 bg-gray-950 border border-gray-800/90 rounded-full overflow-hidden">
+                            <div class="watchers-loading-bar h-full w-2/5 bg-gradient-to-r from-indigo-500 via-emerald-400 to-indigo-500 rounded-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Slot Kanan: Tombol Refresh & Aplikasi -->
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button"
+                            id="btn-refresh-{{ dev.client_id }}"
+                            data-client-id="{{ dev.client_id }}"
+                            onclick="requestRefreshSingle(this.dataset.clientId)"
+                            title="Refresh PC ini"
+                            class="p-2 rounded-xl bg-gray-950 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-gray-400 hover:text-indigo-400 border border-gray-800 transition cursor-pointer">
+                            <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                        </button>
+
+                        <button type="button"
+                            data-client-id="{{ dev.client_id }}"
+                            onclick="openAppsModal(this.dataset.clientId)"
+                            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600/15 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-semibold transition cursor-pointer">
+                            <i data-lucide="package" class="w-3.5 h-3.5"></i>
+                            <span>Aplikasi (<span id="apps-count-{{ dev.client_id }}">{{ dev.apps_count or 0 }}</span>)</span>
+                        </button>
+                    </div>
+                </div>
+
+            </article>
+            {% endfor %}
+        {% else %}
+            <div class="col-span-full bg-gray-900 border border-gray-800 rounded-2xl p-10 text-center">
+                <i data-lucide="monitor-off" class="w-10 h-10 text-gray-600 mx-auto mb-3"></i>
+                <p class="text-sm font-semibold text-gray-300">Belum ada data diagnostik perangkat</p>
+                <p class="text-xs text-gray-500 mt-1">Klik tombol <strong>Refresh Data PC</strong> di atas atau tunggu agent terhubung ke server.</p>
+            </div>
+        {% endif %}
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- 4. MODAL DETAIL APLIKASI TERINSTAL (RESPONSIF)            -->
+    <!-- ========================================================= -->
+    <div id="apps-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-sm">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-2xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            <!-- Header Modal -->
+            <div class="p-4 sm:p-5 border-b border-gray-800 flex items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                        <i data-lucide="package" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 id="apps-modal-title" class="text-sm sm:text-base font-bold text-white truncate">
+                            Daftar Aplikasi Terinstal
+                        </h3>
+                        <p id="apps-modal-subtitle" class="text-[11px] text-gray-400 truncate">
+                            -
+                        </p>
+                    </div>
+                </div>
+
+                <button type="button" onclick="closeAppsModal()"
+                    class="p-2 rounded-xl bg-gray-950 hover:bg-gray-800 text-gray-400 hover:text-white border border-gray-800 transition shrink-0 cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Bar Pencarian Aplikasi di Dalam Modal -->
+            <div class="p-3 sm:px-5 bg-gray-950/60 border-b border-gray-800 shrink-0">
+                <div class="relative">
+                    <i data-lucide="search" class="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" id="modal-app-search" onkeyup="filterModalApps()"
+                        placeholder="Cari nama aplikasi atau publisher..."
+                        class="w-full bg-gray-950 border border-gray-800 focus:border-indigo-500 text-sm sm:text-xs text-gray-100 rounded-xl pl-10 pr-3.5 py-2.5 sm:py-2 focus:outline-none transition">
+                </div>
+            </div>
+
+            <!-- Isi Daftar Aplikasi (Dirender hanya saat modal dibuka) -->
+            <div id="apps-modal-body" class="p-3 sm:p-5 overflow-y-auto flex-1 space-y-2"></div>
+
+            <!-- Footer Modal -->
+            <div class="p-3.5 sm:px-5 border-t border-gray-800 bg-gray-950/50 flex items-center justify-between gap-2 shrink-0">
+                <span id="apps-modal-count" class="text-xs text-gray-400 font-mono">0 aplikasi</span>
+                <button type="button" onclick="closeAppsModal()"
+                    class="w-full sm:w-auto px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-semibold text-gray-200 transition cursor-pointer">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL PANDUAN MEMBACA KESEHATAN PERANGKAT (SLIDE CAROUSEL) -->
+    <!-- ========================================================= -->
+    <div id="health-guide-modal"
+         onclick="if (event.target === this) closeHealthGuideModal()"
+         class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col">
+            
+            <!-- Header Modal -->
+            <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between gap-3 bg-gray-950/60">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                        <i data-lucide="heart-pulse" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-bold text-gray-100 truncate">Panduan Membaca Kesehatan Perangkat</h3>
+                        <p id="guide-slide-subtitle" class="text-[11px] text-gray-400 truncate">Langkah 1 dari 5 • Status Utama &amp; Peringatan</p>
+                    </div>
+                </div>
+
+                <button type="button" onclick="closeHealthGuideModal()"
+                    title="Tutup Panduan"
+                    class="p-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-gray-400 hover:text-white border border-gray-800 transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Viewport Carousel (Area Slide yang Bergeser Kiri / Kanan) -->
+            <div id="guide-carousel-viewport" class="relative overflow-hidden select-none">
+                <div id="guide-slides-track" class="flex transition-transform duration-300 ease-out">
+                    <!-- ===================================================== -->
+                    <!-- SLIDE 1: HEADER KARTU, STATUS, UPTIME, & BANNER ISSUE -->
+                    <!-- ===================================================== -->
+                    <div class="w-full shrink-0 p-5 space-y-3" data-subtitle="Langkah 1 dari 5 • Status Utama, Uptime, &amp; Banner Peringatan">
+                        <div class="flex items-center gap-2 text-xs font-bold text-gray-200">
+                            <span class="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-400 border border-indigo-500/30 font-mono">01</span>
+                            <span>Header Status, Uptime, &amp; Banner Peringatan</span>
+                        </div>
+
+                        <!-- Simulasi Tampilan Bagian Atas Kartu -->
+                        <div class="bg-gray-900/90 border border-gray-800 rounded-xl p-3 space-y-2.5 shadow-inner">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-7 h-7 rounded-lg bg-indigo-950/80 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                                        <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-gray-100 leading-none">RUMAH-01</p>
+                                        <p class="text-[10px] text-gray-500 mt-0.5">Windows 10 • 1dda30e4-503c...</p>
+                                    </div>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-md bg-rose-950/80 text-rose-400 border border-rose-500/30 text-[10px] font-bold uppercase">KRITIS</span>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-1 border-t border-gray-800/80">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1">
+                                    <i data-lucide="activity" class="w-3 h-3 text-indigo-400"></i> Kesehatan Perangkat
+                                </span>
+                                <span class="text-[10px] font-mono text-gray-400 bg-gray-950 px-2 py-0.5 rounded border border-gray-800">Uptime: 4j 44m</span>
+                            </div>
+
+                            <div class="rounded-lg p-2 text-[11px] bg-rose-950/30 border border-rose-500/30 text-rose-300 flex items-center gap-1.5">
+                                <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0"></i>
+                                <span>Memori RAM hampir penuh (95.1%)</span>
+                            </div>
+                        </div>
+
+                        <!-- Penjelasan Detail -->
+                        <div class="space-y-1.5 text-[11px] text-gray-300 leading-relaxed">
+                            <p>
+                                • <strong class="text-white">Badge Status:</strong> <span class="text-emerald-400 font-semibold">SEHAT</span> (normal), <span class="text-amber-400 font-semibold">PERINGATAN</span> (mulai penuh/hangat), atau <span class="text-rose-400 font-semibold">KRITIS</span> (butuh tindakan segera).
+                            </p>
+                            <p>
+                                • <strong class="text-white">Uptime (<code class="text-indigo-300">4j 44m</code> / <code class="text-indigo-300">2h 5j</code>):</strong> Lama komputer menyala sejak terakhir di-<em>restart</em> (<code class="text-gray-400">h</code> = hari, <code class="text-gray-400">j</code> = jam, <code class="text-gray-400">m</code> = menit). Jika menyala <strong>&ge; 7 hari</strong> tanpa <em>restart</em>, status otomatis menjadi <span class="text-amber-400">Peringatan</span>.
+                            </p>
+                            <div class="bg-gray-950/90 border border-gray-800 rounded-lg p-2.5 text-[10px] text-gray-400">
+                                <strong class="text-gray-200">Mengapa kotak Banner Peringatan tidak muncul pada sebagian PC?</strong><br>
+                                Kotak merah/kuning tersebut bersifat dinamis dan <strong>hanya muncul jika ditemukan masalah</strong>. Jika seluruh komponen perangkat dalam keadaan sehat, kotak tersebut otomatis disembunyikan agar kartu tetap ringkas.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================================================== -->
+                    <!-- SLIDE 2: GRID 3 METRIK UTAMA (CPU, RAM, & NET)        -->
+                    <!-- ===================================================== -->
+                    <div class="w-full shrink-0 p-5 space-y-3" data-subtitle="Langkah 2 dari 5 • Grid 3 Metrik Utama (CPU, RAM, &amp; Net)">
+                        <div class="flex items-center gap-2 text-xs font-bold text-gray-200">
+                            <span class="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-400 border border-indigo-500/30 font-mono">02</span>
+                            <span>Membaca Grid 3 Metrik Utama: CPU, RAM, &amp; Net</span>
+                        </div>
+
+                        <!-- Simulasi Tampilan 3 Kotak Metrik -->
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="bg-gray-950 border border-gray-800 rounded-xl p-2.5">
+                                <p class="text-[10px] text-gray-500 truncate">CPU • <span class="text-gray-300">62°C</span></p>
+                                <p class="text-xs font-bold font-mono text-gray-100 mt-0.5">51.2%</p>
+                            </div>
+                            <div class="bg-gray-950 border border-gray-800 rounded-xl p-2.5">
+                                <p class="text-[10px] text-gray-500 truncate">RAM (95.1%)</p>
+                                <p class="text-xs font-bold font-mono text-gray-100 mt-0.5">7.4/7.79G</p>
+                            </div>
+                            <div class="bg-gray-950 border border-gray-800 rounded-xl p-2.5">
+                                <p class="text-[10px] text-gray-500 truncate">Net • 5ms</p>
+                                <p class="text-xs font-bold text-emerald-400 mt-0.5">Lancar</p>
+                            </div>
+                        </div>
+
+                        <!-- Penjelasan Detail -->
+                        <div class="space-y-1.5 text-[11px] text-gray-300 leading-relaxed">
+                            <p>
+                                • <strong class="text-white">CPU:</strong> Beban prosesor saat ini (<span class="text-amber-400">&ge; 78%</span> Peringatan, <span class="text-rose-400">&ge; 92%</span> Kritis) &amp; suhu termal (<span class="text-amber-400">&ge; 75°C</span> Hangat, <span class="text-rose-400">&ge; 88°C</span> Overheat).
+                            </p>
+                            <p>
+                                • <strong class="text-white">RAM:</strong> Kapasitas terpakai dibanding total memori fisik (<span class="text-amber-400">&ge; 88%</span> Peringatan, <span class="text-rose-400">&ge; 95%</span> Kritis).
+                            </p>
+                            <p>
+                                • <strong class="text-white">Net (Ping Internet):</strong> <span class="text-emerald-400 font-semibold">Lancar</span> (&lt; 60 ms), <span class="text-sky-400 font-semibold">Sedang</span> (60–149 ms), <span class="text-amber-400 font-semibold">Lemot</span> (&ge; 150 ms / ada <em>packet loss</em>), atau <span class="text-rose-400 font-semibold">Putus</span> (100% loss).
+                            </p>
+                            <div class="bg-gray-950/90 border border-gray-800 rounded-lg p-2.5 text-[10px] text-gray-400">
+                                <strong class="text-gray-200">Mengapa suhu (°C) di samping CPU kadang tidak muncul?</strong><br>
+                                Banyak laptop modern (seperti Intel Gen-11 ke atas) mengatur suhu lewat <em>Intel Dynamic Tuning</em> internal dan tidak mengekspos sensor suhu ACPI ke Windows. Jika sensor tidak tersedia, angka <code class="text-gray-300">°C</code> otomatis disembunyikan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================================================== -->
+                    <!-- SLIDE 3: KESEHATAN FISIK PENYIMPANAN (S.M.A.R.T.)     -->
+                    <!-- ===================================================== -->
+                    <div class="w-full shrink-0 p-5 space-y-3" data-subtitle="Langkah 3 dari 7 • Kesehatan Fisik SSD / HDD (S.M.A.R.T.)">
+                        <div class="flex items-center gap-2 text-xs font-bold text-gray-200">
+                            <span class="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-400 border border-indigo-500/30 font-mono">03</span>
+                            <span>Kesehatan Fisik Penyimpanan ([SSD] / [HDD])</span>
+                        </div>
+
+                        <!-- Simulasi Tampilan Kartu Fisik Disk -->
+                        <div class="bg-gray-950 border border-gray-800/90 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-[11px]">
+                            <div class="min-w-0">
+                                <p class="text-gray-200 font-semibold truncate">
+                                    <span class="text-indigo-400 font-mono">[SSD]</span> INTEL SSDPEKNW512GZL
+                                </p>
+                                <p class="text-[10px] text-gray-500 font-mono mt-0.5">
+                                    Suhu: <span class="text-gray-300">43°C</span> • Sisa Umur: <span class="text-gray-300">100%</span>
+                                </p>
+                            </div>
+                            <span class="shrink-0 font-bold text-[10px] uppercase px-2 py-0.5 rounded-md bg-emerald-950/70 text-emerald-400">
+                                SEHAT
+                            </span>
+                        </div>
+
+                        <!-- Penjelasan Detail -->
+                        <div class="space-y-1.5 text-[11px] text-gray-300 leading-relaxed">
+                            <p>
+                                • <strong class="text-white">Jenis &amp; Model Drive:</strong> Label <code class="text-indigo-400">[SSD]</code> atau <code class="text-indigo-400">[HDD]</code> menunjukkan tipe penyimpanan fisik yang terpasang di motherboard.
+                            </p>
+                            <p>
+                                • <strong class="text-white">Suhu Drive:</strong> Normal di bawah <span class="font-mono text-emerald-400">55°C</span>. Berubah <span class="text-amber-400 font-semibold">Peringatan</span> jika <span class="font-mono">&ge; 55°C</span> dan <span class="text-rose-400 font-semibold">Kritis</span> jika <span class="font-mono">&ge; 65°C</span>.
+                            </p>
+                            <p>
+                                • <strong class="text-white">Sisa Umur SSD (%):</strong> Perkiraan ketahanan tulis (<em>wear level</em>) sel memori yang tersisa. Jika sisa umur turun ke <span class="text-amber-400 font-semibold">&le; 25%</span> (Peringatan) atau <span class="text-rose-400 font-semibold">&le; 10%</span> (Kritis), segera cadangkan data siswa.
+                            </p>
+                            <div class="bg-gray-950/90 border border-gray-800 rounded-lg p-2.5 text-[10px] text-gray-400">
+                                <strong class="text-gray-200">Mengapa "Suhu: -" atau "Sisa Umur" tidak muncul di beberapa PC?</strong><br>
+                                Beberapa HDD lama, SSD SATA ekonomis, atau <em>storage controller</em> RAID tidak melaporkan data suhu maupun penghitung <em>wear level</em> ke Windows. Jika firmware drive tidak mengirimkannya, teks <em>Sisa Umur</em> otomatis disembunyikan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================================================== -->
+                    <!-- SLIDE 4: KESEHATAN BATERAI (KHUSUS LAPTOP)            -->
+                    <!-- ===================================================== -->
+                    <div class="w-full shrink-0 p-5 space-y-3" data-subtitle="Langkah 4 dari 7 • Kesehatan Baterai (Khusus Laptop)">
+                        <div class="flex items-center gap-2 text-xs font-bold text-gray-200">
+                            <span class="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-400 border border-indigo-500/30 font-mono">04</span>
+                            <span>Kesehatan Baterai &amp; Kapasitas Daya</span>
+                        </div>
+
+                        <!-- Simulasi Tampilan Kartu Baterai -->
+                        <div class="bg-gray-950 border border-gray-800/90 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 text-[11px]">
+                            <div class="min-w-0">
+                                <p class="text-gray-200 font-semibold">
+                                    Baterai 100% <span class="text-emerald-400 text-[10px]">(Charging)</span>
+                                </p>
+                                <p class="text-[10px] text-gray-500 font-mono mt-0.5">
+                                    38850 / 42000 mWh
+                                </p>
+                            </div>
+                            <span class="shrink-0 font-bold text-[10px] px-2 py-0.5 rounded-md bg-emerald-950/70 text-emerald-400">
+                                Health 92.5%
+                            </span>
+                        </div>
+
+                        <!-- Penjelasan Detail -->
+                        <div class="space-y-1.5 text-[11px] text-gray-300 leading-relaxed">
+                            <p>
+                                • <strong class="text-white">Persentase &amp; Status Pengisian:</strong> Menampilkan sisa daya baterai saat ini. Tulisan <span class="text-emerald-400 font-semibold">(Charging)</span> muncul saat kabel adaptor daya tersambung.
+                            </p>
+                            <p>
+                                • <strong class="text-white">Kapasitas mWh &amp; Badge Health:</strong> Membandingkan kapasitas penuh baterai saat ini (<em>Full Charge</em>) dengan kapasitas asli pabrik (<em>Design Capacity</em>). Berstatus <span class="text-emerald-400 font-semibold">Sehat</span> (&ge; 65%), <span class="text-amber-400 font-semibold">Peringatan</span> (40%–64.9%), atau <span class="text-rose-400 font-semibold">Kritis</span> (&lt; 40%, baterai sudah <em>drop</em>).
+                            </p>
+                            <div class="bg-gray-950/90 border border-gray-800 rounded-lg p-2.5 text-[10px] text-gray-400">
+                                <strong class="text-gray-200">Mengapa bagian Baterai sama sekali tidak muncul pada PC Desktop?</strong><br>
+                                Kartu baterai bersifat kondisional dan <strong>otomatis disembunyikan pada PC Desktop</strong> yang tidak memiliki baterai. Bagian ini hanya muncul pada perangkat Laptop (atau PC yang terhubung ke UPS melalui kabel data USB).
+                            </div>
+                        </div>
+                    </div>
+
+                   <!-- ===================================================== -->
+                    <!-- SLIDE 5: LIPATAN DETAIL — TOP 3 PROSES & DRIVER ERROR -->
+                    <!-- ===================================================== -->
+                    <div class="w-full shrink-0 p-5 space-y-3" data-subtitle="Langkah 5 dari 7 • Top 3 Proses &amp; Driver Bermasalah">
+                        <div class="flex items-center gap-2 text-xs font-bold text-gray-200">
+                            <span class="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-400 border border-indigo-500/30 font-mono">05</span>
+                            <span>Top 3 Proses (RAM &amp; CPU) &amp; Driver Bermasalah</span>
+                        </div>
+
+                        <!-- Simulasi Tampilan Top 3 Proses & Driver Error -->
+                        <div class="bg-gray-950/80 border border-gray-800 rounded-xl p-2.5 space-y-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="bg-gray-900/80 border border-gray-800/80 rounded-lg p-2">
+                                    <p class="text-[10px] font-bold text-indigo-400 uppercase mb-1">Top 3 RAM</p>
+                                    <div class="flex justify-between text-[10px] font-mono"><span class="text-gray-300 truncate">chrome.exe</span><span class="text-gray-400">799.7M</span></div>
+                                    <div class="flex justify-between text-[10px] font-mono"><span class="text-gray-300 truncate">Code.exe</span><span class="text-gray-400">613.1M</span></div>
+                                </div>
+                                <div class="bg-gray-900/80 border border-gray-800/80 rounded-lg p-2">
+                                    <p class="text-[10px] font-bold text-amber-400 uppercase mb-1">Top 3 CPU</p>
+                                    <div class="flex justify-between text-[10px] font-mono"><span class="text-gray-300 truncate">powershell.exe</span><span class="text-gray-400">18.8%</span></div>
+                                    <div class="flex justify-between text-[10px] font-mono"><span class="text-gray-300 truncate">MsMpEng.exe</span><span class="text-gray-400">7.8%</span></div>
+                                </div>
+                            </div>
+                            <div class="bg-amber-950/25 border border-amber-500/30 rounded-lg px-2.5 py-1.5">
+                                <p class="text-[10px] font-bold text-amber-400 uppercase">Driver Bermasalah (Contoh)</p>
+                                <p class="text-[10px] text-amber-200 truncate">• USB Audio Device (Code 28)</p>
+                            </div>
+                        </div>
+
+                        <!-- Penjelasan Detail -->
+                        <div class="space-y-1.5 text-[11px] text-gray-300 leading-relaxed">
+                            <p>
+                                • <strong class="text-white">Cara Membuka:</strong> Klik lipatan <em>"Detail Proses, Jaringan, &amp; Spesifikasi"</em> di tengah kartu untuk melacak aplikasi berat tanpa perlu membuka Task Manager di PC siswa.
+                            </p>
+                            <p>
+                                • <strong class="text-white">Top 3 RAM &amp; CPU:</strong> Menampilkan 3 proses teratas pemakan memori (satuan <code class="text-indigo-300">M</code> = Megabyte) dan beban prosesor (<code class="text-amber-300">%</code> terukur dari total seluruh core).
+                            </p>
+                            <div class="bg-gray-950/90 border border-gray-800 rounded-lg p-2.5 text-[10px] text-gray-400">
+                                <strong class="text-gray-200">Mengapa kotak "Driver Bermasalah" tidak muncul di lipatan detail?</strong><br>
+                                Kotak kuning ini <strong>hanya muncul jika ada perangkat bertanda seru kuning di Windows Device Manager</strong> (<code class="text-gray-300">ErrorCode != 0</code>). Jika semua driver terinstal normal, bagian ini otomatis disembunyikan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================================================== -->
+                    <!-- SLIDE 6: LIPATAN DETAIL — SPESIFIKASI & JARINGAN      -->
+                    <!-- ===================================================== -->
+                    <div class="w-full shrink-0 p-5 space-y-3" data-subtitle="Langkah 6 dari 7 • Spesifikasi Hardware &amp; Detail Jaringan">
+                        <div class="flex items-center gap-2 text-xs font-bold text-gray-200">
+                            <span class="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-400 border border-indigo-500/30 font-mono">06</span>
+                            <span>Spesifikasi Hardware, Link Speed, &amp; Kualitas Internet</span>
+                        </div>
+
+                        <!-- Simulasi Tampilan Spesifikasi & Jaringan -->
+                        <div class="bg-gray-950 border border-gray-800 rounded-xl p-3 space-y-1 text-[11px] text-gray-400">
+                            <p class="truncate"><span class="text-gray-500">CPU:</span> <span class="text-gray-300">11th Gen Intel(R) Core(TM) i3-1115G4</span></p>
+                            <p class="truncate"><span class="text-gray-500">GPU:</span> <span class="text-gray-300">Intel(R) UHD Graphics</span></p>
+                            <p><span class="text-gray-500">OS:</span> <span class="text-gray-300">Windows 10</span></p>
+                            <p class="truncate"><span class="text-gray-500">Jaringan:</span> <span class="font-mono text-gray-300">Wi-Fi • 192.168.1.2 (144 Mbps)</span></p>
+                            <p><span class="text-gray-500">Kualitas Internet:</span> <span class="font-mono text-emerald-400">Lancar • 5 ms (Loss 0%)</span></p>
+                        </div>
+
+                        <!-- Penjelasan Detail -->
+                        <div class="space-y-1.5 text-[11px] text-gray-300 leading-relaxed">
+                            <p>
+                                • <strong class="text-white">Identitas Hardware &amp; OS:</strong> Memudahkan inventarisasi model CPU, kartu grafis (GPU), dan versi Windows setiap unit tanpa mengecek satu per satu.
+                            </p>
+                            <p>
+                                • <strong class="text-white">Kecepatan Link Adapter (<code class="text-indigo-300">Mbps</code>):</strong> Kabel LAN Gigabit normal terbaca <span class="font-mono text-gray-200">1000 Mbps</span>. Jika 1 PC turun menjadi <span class="font-mono text-amber-400">100 Mbps</span> atau <span class="font-mono text-rose-400">10 Mbps</span>, kepala RJ45 atau kabel LAN PC tersebut perlu diperiksa.
+                            </p>
+                            <p>
+                                • <strong class="text-white">Latensi &amp; Packet Loss:</strong> Diuji dengan mengirim paket ping cepat (maksimal 2 detik). Jika <span class="font-mono text-amber-400">Loss &gt; 0%</span>, koneksi tidak stabil meskipun angka <code class="text-gray-300">ms</code> terlihat kecil.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- ===================================================== -->
+                    <!-- SLIDE 7: PENYIMPANAN KOMPUTER (C:/D:) & TOMBOL AKSI   -->
+                    <!-- ===================================================== -->
+                    <div class="w-full shrink-0 p-5 space-y-3" data-subtitle="Langkah 7 dari 7 • Kapasitas Partisi &amp; Tombol Aksi">
+                        <div class="flex items-center gap-2 text-xs font-bold text-gray-200">
+                            <span class="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-400 border border-indigo-500/30 font-mono">07</span>
+                            <span>Penyimpanan Komputer (Partisi) &amp; Tombol Aksi</span>
+                        </div>
+
+                        <!-- Simulasi Tampilan Penyimpanan & Footer -->
+                        <div class="bg-gray-900/90 border border-gray-800 rounded-xl p-3 space-y-2">
+                            <div class="bg-gray-950 border border-gray-800/90 rounded-lg p-2">
+                                <div class="flex justify-between text-[11px] mb-1">
+                                    <span class="font-semibold text-gray-200">Local Disk (C:)</span>
+                                    <span class="font-mono text-amber-400 font-semibold">Sisa 16.55 GB <span class="text-gray-500 font-normal">/ 89.96 GB</span></span>
+                                </div>
+                                <div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div class="h-full bg-amber-500 rounded-full" style="width: 81%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="pt-1.5 border-t border-gray-800 flex items-center justify-between gap-2">
+                                <span class="text-[10px] text-gray-500">Update: 2026-11-15 21:35:01</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="p-1.5 rounded-lg bg-gray-950 border border-gray-800 text-gray-400"><i data-lucide="rotate-cw" class="w-3 h-3"></i></span>
+                                    <span class="px-2.5 py-1 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-[10px] font-semibold">Aplikasi (36)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Penjelasan Detail -->
+                        <div class="space-y-1.5 text-[11px] text-gray-300 leading-relaxed">
+                            <p>
+                                • <strong class="text-white">Warna Bar Partisi:</strong> <span class="text-emerald-400 font-semibold">Hijau</span> (&lt; 75% terpakai), <span class="text-amber-400 font-semibold">Kuning</span> (75%–89% terpakai), dan <span class="text-rose-400 font-semibold">Merah</span> (&ge; 90% terpakai). Jika sisa ruang menyentuh <span class="text-amber-400">&le; 8 GB</span> atau <span class="text-rose-400">&le; 3 GB</span>, status kesehatan perangkat ikut naik menjadi Peringatan/Kritis.
+                            </p>
+                            <p>
+                                • <strong class="text-white">Tombol Refresh (<i data-lucide="rotate-cw" class="w-3 h-3 inline"></i>) &amp; Loading Bar:</strong> Memindai ulang PC secara langsung (±1–2 detik); teks <em>Update</em> berganti menjadi batang animasi selama menunggu respons.
+                            </p>
+                            <p>
+                                • <strong class="text-white">Tombol Aplikasi:</strong> Menampilkan seluruh software terinstal (baik <em>system-wide</em> maupun per-akun siswa) beserta versi dan penerbitnya.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Navigasi: Tombol Kiri, Indikator Titik, & Tombol Kanan -->
+            <div class="px-5 py-3.5 border-t border-gray-800 bg-gray-950/60 flex items-center justify-between gap-3">
+                <button type="button" id="btn-guide-prev" onclick="prevGuideSlide()"
+                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 hover:text-white border border-gray-800 text-xs font-semibold transition cursor-pointer">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    <span>Sebelumnya</span>
+                </button>
+
+                <!-- Indikator Titik Halaman (Dots) -->
+                <div id="guide-dots-container" class="flex items-center gap-1.5">
+                    <!-- Titik slide otomatis dirender oleh JS pada Tahap 3 -->
+                </div>
+
+                <button type="button" id="btn-guide-next" onclick="nextGuideSlide()"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition cursor-pointer shadow-md shadow-indigo-950/50">
+                    <span id="btn-guide-next-label">Berikutnya</span>
+                    <i data-lucide="chevron-right" id="btn-guide-next-icon" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 5. JAVASCRIPT: STATE DEVICES, SOCKET.IO, & MODAL HANDLER  -->
+    <!-- ========================================================= -->
+    <script>
+        lucide.createIcons();
+        const socket = io();
+
+        // Simpan seluruh data dari server ke map memori JS (tanpa render DOM berlebih)
+        const initialDevices = {{ devices | tojson }};
+        const devicesMap = {};
+        initialDevices.forEach(dev => {
+            devicesMap[dev.client_id] = dev;
+        });
+
+        const cardLoadingTimeouts = {};
+
+        let activeModalClientId = null;
+        let currentModalApps = [];
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return "";
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // 1. Filter Pencarian Kartu Komputer
+        function filterDeviceCards() {
+            const query = document.getElementById("device-search-input").value.toLowerCase().trim();
+            document.querySelectorAll(".device-card").forEach(card => {
+                const haystack = card.getAttribute("data-search") || "";
+                card.classList.toggle("hidden", !haystack.includes(query));
+            });
+        }
+
+
+        function setCardLoading(clientId, isLoading) {
+            const updatedEl = document.getElementById(`updated-at-${clientId}`);
+            const barEl = document.getElementById(`loading-bar-${clientId}`);
+            const btnEl = document.getElementById(`btn-refresh-${clientId}`);
+
+            if (cardLoadingTimeouts[clientId]) {
+                clearTimeout(cardLoadingTimeouts[clientId]);
+                delete cardLoadingTimeouts[clientId];
+            }
+
+            if (isLoading) {
+                if (updatedEl) updatedEl.classList.add("hidden");
+                if (barEl) barEl.classList.remove("hidden");
+                if (btnEl) {
+                    btnEl.disabled = true;
+                    const icon = btnEl.querySelector("svg, i");
+                    if (icon) icon.classList.add("animate-spin", "text-indigo-400");
+                }
+
+                // Pengaman otomatis jika PC sedang offline / tidak membalas dalam 8 detik
+                cardLoadingTimeouts[clientId] = setTimeout(() => {
+                    setCardLoading(clientId, false);
+                }, 8000);
+            } else {
+                if (barEl) barEl.classList.add("hidden");
+                if (updatedEl) updatedEl.classList.remove("hidden");
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    const icon = btnEl.querySelector("svg, i");
+                    if (icon) icon.classList.remove("animate-spin", "text-indigo-400");
+                }
+            }
+        }
+
+        // 2. Tombol Refresh Semua PC (Top Bar)
+        function requestRefreshAll() {
+            const btn = document.getElementById("btn-refresh-all");
+            const icon = document.getElementById("icon-refresh-all");
+            const text = document.getElementById("text-refresh-all");
+
+            btn.disabled = true;
+            icon.classList.add("animate-spin");
+            text.textContent = "Memindai Semua PC...";
+
+            // Aktifkan loading bar pada setiap kartu perangkat
+            document.querySelectorAll("[id^='btn-refresh-']").forEach((el) => {
+                if (el.dataset.clientId) {
+                    setCardLoading(el.dataset.clientId, true);
+                }
+            });
+
+            socket.emit("request_all_diagnostics", { device_id: "all", include_apps: true });
+
+            setTimeout(() => {
+                btn.disabled = false;
+                icon.classList.remove("animate-spin");
+                text.textContent = "Refresh Data PC";
+            }, 3000);
+        }
+
+        // 3. Tombol Refresh Per 1 PC
+        function requestRefreshSingle(clientId) {
+            if (!clientId) return;
+            setCardLoading(clientId, true);
+            socket.emit("request_all_diagnostics", { device_id: clientId, include_apps: true });
+        }
+        // 4. Terima Pembaruan Diagnostik Real-Time dari Server
+        socket.on("pc_diagnostics_updated", (data) => {
+            if (!data || !data.client_id) return;
+            const id = data.client_id;
+            if (!id) return;
+
+            // Hentikan loading bar dan tampilkan kembali teks Update terbaru
+            setCardLoading(id, false);
+
+            // Perbarui state di memori JS (termasuk list apps terbaru)
+            devicesMap[id] = data;
+
+            // Jika kartu belum ada di halaman (misal PC baru saja pertama kali connect), muat ulang
+            if (!document.getElementById(`device-card-${id}`)) {
+                window.location.reload();
+                return;
+            }
+
+            // Update Badge Kesehatan
+            const badge = document.getElementById(`health-badge-${id}`);
+            if (badge && data.health_status) {
+                badge.textContent = data.health_status;
+                badge.className = "shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ";
+                if (data.health_status === "Sehat") {
+                    badge.className += "bg-emerald-950/60 text-emerald-400 border-emerald-500/30";
+                } else if (data.health_status === "Peringatan") {
+                    badge.className += "bg-amber-950/60 text-amber-400 border-amber-500/30";
+                } else if (data.health_status === "Kritis") {
+                    badge.className += "bg-rose-950/60 text-rose-400 border-rose-500/30";
+                } else {
+                    badge.className += "bg-gray-800 text-gray-400 border-gray-700";
+                }
+            }
+
+            // Update Kesehatan Perangkat Secara Detail
+            // Update Kesehatan Perangkat Secara Detail (Real-Time)
+            const healthSection = document.getElementById(`health-section-${id}`);
+            if (healthSection && data.health && Object.keys(data.health).length > 0) {
+                const h = data.health;
+                const net = h.network || {};
+
+                // 1. Banner Alasan Diagnosis
+                let issuesHtml = "";
+                if (Array.isArray(h.issues) && h.issues.length > 0) {
+                    const boxCls = data.health_status === "Kritis"
+                        ? "bg-rose-950/30 border-rose-500/30 text-rose-300"
+                        : (data.health_status === "Peringatan"
+                            ? "bg-amber-950/30 border-amber-500/30 text-amber-300"
+                            : "bg-sky-950/30 border-sky-500/30 text-sky-300");
+                    issuesHtml = `<div class="rounded-xl p-2.5 text-[11px] border space-y-1 ${boxCls}">` +
+                        h.issues.map(iss => `
+                            <div class="flex items-start gap-1.5">
+                                <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 mt-0.5"></i>
+                                <span>${escapeHtml(iss)}</span>
+                            </div>
+                        `).join("") + `</div>`;
+                }
+
+                // 2. Warna Status Jaringan
+                const netColorCls = net.status === "Lancar" ? "text-emerald-400"
+                    : (net.status === "Sedang" ? "text-sky-400"
+                    : (net.status === "Lemot" ? "text-amber-400"
+                    : (net.status === "Putus" ? "text-rose-400" : "text-gray-300")));
+                const pingSubTxt = (net.ping_ms !== null && net.ping_ms !== undefined) ? ` • ${escapeHtml(net.ping_ms)}ms` : "";
+
+                // 3. Kesehatan Fisik Disk
+                let disksHealthHtml = "";
+                if (Array.isArray(h.disks_health) && h.disks_health.length > 0) {
+                    disksHealthHtml = `<div class="space-y-1.5">` + h.disks_health.map(d => {
+                        const badgeCls = d.health_status === "Sehat"
+                            ? "bg-emerald-950/70 text-emerald-400"
+                            : (d.health_status === "Peringatan" ? "bg-amber-950/70 text-amber-400" : "bg-rose-950/70 text-rose-400");
+                        const tempTxt = d.temp_c ? `Suhu: ${escapeHtml(d.temp_c)}°C` : "Suhu: -";
+                        const lifeTxt = (d.remaining_life_percent !== null && d.remaining_life_percent !== undefined)
+                            ? ` • Sisa Umur: ${escapeHtml(d.remaining_life_percent)}%` : "";
+                        return `
+                            <div class="bg-gray-950 border border-gray-800/90 rounded-xl px-2.5 py-2 flex items-center justify-between gap-2 text-[11px]">
+                                <div class="min-w-0">
+                                    <p class="text-gray-200 font-semibold truncate">
+                                        <span class="text-indigo-400 font-mono">[${escapeHtml(d.media_type)}]</span> ${escapeHtml(d.name)}
+                                    </p>
+                                    <p class="text-[10px] text-gray-500 font-mono">${tempTxt}${lifeTxt}</p>
+                                </div>
+                                <span class="shrink-0 font-bold text-[10px] uppercase px-2 py-0.5 rounded-md ${badgeCls}">
+                                    ${escapeHtml(d.health_status)}
+                                </span>
+                            </div>
+                        `;
+                    }).join("") + `</div>`;
+                }
+
+                // 4. Kesehatan Baterai
+                let batteryHtml = "";
+                if (h.battery) {
+                    const b = h.battery;
+                    const bCls = b.health_status === "Sehat"
+                        ? "bg-emerald-950/70 text-emerald-400"
+                        : (b.health_status === "Peringatan" ? "bg-amber-950/70 text-amber-400" : "bg-rose-950/70 text-rose-400");
+                    const capSub = (b.full_charge_capacity_mwh && b.design_capacity_mwh)
+                        ? `<p class="text-[10px] text-gray-500 font-mono truncate">${escapeHtml(b.full_charge_capacity_mwh)} / ${escapeHtml(b.design_capacity_mwh)} mWh</p>`
+                        : "";
+                    const rightLabel = (b.health_percent !== null && b.health_percent !== undefined)
+                        ? `Health ${escapeHtml(b.health_percent)}%`
+                        : escapeHtml(b.health_status);
+                    batteryHtml = `
+                        <div class="bg-gray-950 border border-gray-800/90 rounded-xl px-2.5 py-2 flex items-center justify-between gap-2 text-[11px]">
+                            <div class="min-w-0">
+                                <p class="text-gray-200 font-semibold">
+                                    Baterai ${escapeHtml(b.charge_percent)}% ${b.plugged_in ? '<span class="text-emerald-400 text-[10px]">(Charging)</span>' : ""}
+                                </p>
+                                ${capSub}
+                            </div>
+                            <span class="shrink-0 font-bold text-[10px] px-2 py-0.5 rounded-md ${bCls}">${rightLabel}</span>
+                        </div>
+                    `;
+                }
+
+                // 5. Top 3 Proses (RAM & CPU)
+                let topProcsHtml = "";
+                if (h.top_processes) {
+                    const topRam = Array.isArray(h.top_processes.top_ram) ? h.top_processes.top_ram : [];
+                    const topCpu = Array.isArray(h.top_processes.top_cpu) ? h.top_processes.top_cpu : [];
+                    const ramItems = topRam.length > 0
+                        ? topRam.map(p => `<div class="flex justify-between gap-1 text-[10px] font-mono"><span class="text-gray-300 truncate">${escapeHtml(p.name)}</span><span class="text-gray-400 shrink-0">${escapeHtml(p.ram_mb)}M</span></div>`).join("")
+                        : `<p class="text-[10px] text-gray-500">-</p>`;
+                    const cpuItems = topCpu.length > 0
+                        ? topCpu.map(p => `<div class="flex justify-between gap-1 text-[10px] font-mono"><span class="text-gray-300 truncate">${escapeHtml(p.name)}</span><span class="text-gray-400 shrink-0">${escapeHtml(p.cpu_percent)}%</span></div>`).join("")
+                        : `<p class="text-[10px] text-gray-500">-</p>`;
+
+                    topProcsHtml = `
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-gray-900/70 border border-gray-800/70 rounded-lg p-2">
+                                <p class="text-[10px] font-bold text-indigo-400 uppercase mb-1">Top 3 RAM</p>
+                                ${ramItems}
+                            </div>
+                            <div class="bg-gray-900/70 border border-gray-800/70 rounded-lg p-2">
+                                <p class="text-[10px] font-bold text-amber-400 uppercase mb-1">Top 3 CPU</p>
+                                ${cpuItems}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 6. Driver Bermasalah
+                let driverErrHtml = "";
+                if (Array.isArray(h.driver_errors) && h.driver_errors.length > 0) {
+                    driverErrHtml = `
+                        <div class="bg-amber-950/25 border border-amber-500/30 rounded-lg p-2 space-y-0.5">
+                            <p class="text-[10px] font-bold text-amber-400 uppercase">Driver Bermasalah</p>
+                            ${h.driver_errors.map(drv => `<p class="text-[10px] text-amber-200 truncate">• ${escapeHtml(drv.name)} (Code ${escapeHtml(drv.error_code)})</p>`).join("")}
+                        </div>
+                    `;
+                }
+
+                const cpuTempTxt = h.cpu_temp_c ? ` • ${escapeHtml(h.cpu_temp_c)}°C` : "";
+                const speedTxt = net.speed_mbps ? ` (${escapeHtml(net.speed_mbps)} Mbps)` : "";
+                const pingDetailTxt = (net.ping_ms !== null && net.ping_ms !== undefined) ? ` • ${escapeHtml(net.ping_ms)} ms` : "";
+
+                healthSection.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                            <i data-lucide="activity" class="w-3.5 h-3.5 text-indigo-400"></i>
+                            Kesehatan Perangkat
+                        </p>
+                        ${h.uptime ? `<span class="text-[10px] font-mono text-gray-500">Uptime: ${escapeHtml(h.uptime)}</span>` : ""}
+                    </div>
+                    ${issuesHtml}
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="bg-gray-950 border border-gray-800/90 rounded-xl p-2.5">
+                            <p class="text-[10px] text-gray-500 truncate">CPU${cpuTempTxt}</p>
+                            <p class="text-xs font-bold font-mono text-gray-100 mt-0.5">${escapeHtml(h.cpu_percent)}%</p>
+                        </div>
+                        <div class="bg-gray-950 border border-gray-800/90 rounded-xl p-2.5">
+                            <p class="text-[10px] text-gray-500 truncate">RAM (${escapeHtml(h.ram_percent)}%)</p>
+                            <p class="text-xs font-bold font-mono text-gray-100 mt-0.5 truncate">${escapeHtml(h.ram_used_gb)}/${escapeHtml(h.ram_total_gb)}G</p>
+                        </div>
+                        <div class="bg-gray-950 border border-gray-800/90 rounded-xl p-2.5">
+                            <p class="text-[10px] text-gray-500 truncate">Net${pingSubTxt}</p>
+                            <p class="text-xs font-bold mt-0.5 truncate ${netColorCls}">${escapeHtml(net.status || "-")}</p>
+                        </div>
+                    </div>
+                    ${disksHealthHtml}
+                    ${batteryHtml}
+                    <details class="group bg-gray-950/70 border border-gray-800/80 rounded-xl px-3 py-2 text-[11px]">
+                        <summary class="cursor-pointer list-none flex items-center justify-between text-gray-400 hover:text-gray-200 font-semibold select-none">
+                            <span>Detail Proses, Jaringan, &amp; Spesifikasi</span>
+                            <i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform group-open:rotate-180"></i>
+                        </summary>
+                        <div class="mt-2.5 pt-2.5 border-t border-gray-800/80 space-y-2.5 text-[11px] text-gray-400">
+                            ${topProcsHtml}
+                            ${driverErrHtml}
+                            <div class="space-y-1">
+                                <p class="truncate"><span class="text-gray-500">CPU:</span> ${escapeHtml(h.cpu_name || "-")}</p>
+                                <p class="truncate"><span class="text-gray-500">GPU:</span> ${escapeHtml(h.gpu_name || "-")}</p>
+                                <p><span class="text-gray-500">OS:</span> <span class="text-gray-300">${escapeHtml(h.os || "-")}</span></p>
+                                <p class="truncate"><span class="text-gray-500">Jaringan:</span> <span class="font-mono text-gray-300">${escapeHtml(net.interface || "-")} • ${escapeHtml(net.ip || "-")}${speedTxt}</span></p>
+                                <p><span class="text-gray-500">Kualitas Internet:</span> <span class="font-mono text-gray-300">${escapeHtml(net.status || "-")}${pingDetailTxt} (Loss ${escapeHtml(net.loss_percent ?? 100)}%)</span></p>
+                            </div>
+                        </div>
+                    </details>
+                `;
+
+                if (window.lucide) {
+                    lucide.createIcons();
+                }
+            }
+
+            // Update Penyimpanan Komputer (Local Disk C:, D:, dst.)
+            const storageSection = document.getElementById(`storage-section-${id}`);
+            if (storageSection && Array.isArray(data.storage)) {
+                let disksHtml = "";
+                if (data.storage.length > 0) {
+                    disksHtml = `<div class="space-y-2">` + data.storage.map(disk => {
+                        const pct = Number(disk.percent_used || 0);
+                        const textColor = pct >= 90 ? "text-rose-400 font-bold" : (pct >= 75 ? "text-amber-400 font-semibold" : "text-emerald-400 font-semibold");
+                        const barColor = pct >= 90 ? "bg-rose-500" : (pct >= 75 ? "bg-amber-500" : "bg-emerald-500");
+                        return `
+                            <div class="bg-gray-950 border border-gray-800/90 rounded-xl p-2.5">
+                                <div class="flex items-center justify-between text-xs mb-1.5 gap-2">
+                                    <span class="font-semibold text-gray-200 truncate">${escapeHtml(disk.label)}</span>
+                                    <span class="font-mono text-[11px] shrink-0 ${textColor}">
+                                        Sisa ${escapeHtml(disk.free_gb)} GB <span class="text-gray-500 font-normal">/ ${escapeHtml(disk.total_gb)} GB</span>
+                                    </span>
+                                </div>
+                                <div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all ${barColor}" style="width: ${pct}%;"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join("") + `</div>`;
+                } else {
+                    disksHtml = `
+                        <div class="bg-gray-950/70 border border-dashed border-gray-800 rounded-xl p-3 text-center text-[11px] text-gray-500">
+                            Belum ada data penyimpanan partisi
+                        </div>
+                    `;
+                }
+
+                storageSection.innerHTML = `
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
+                        <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-sky-400"></i>
+                        Penyimpanan Komputer
+                    </p>
+                    ${disksHtml}
+                `;
+            }
+
+            // Update Jumlah Aplikasi & Waktu Pembaruan
+            const appsCountEl = document.getElementById(`apps-count-${id}`);
+            if (appsCountEl && data.apps_count !== undefined) {
+                appsCountEl.textContent = data.apps_count;
+            }
+
+            const updatedEl = document.getElementById(`updated-at-${id}`);
+            if (updatedEl && data.updated_at) {
+                updatedEl.textContent = `Update: ${data.updated_at}`;
+            }
+
+            // Jika modal aplikasi sedang terbuka untuk PC ini, ikut perbarui isinya
+            if (activeModalClientId === id) {
+                currentModalApps = Array.isArray(data.apps) ? data.apps : [];
+                document.getElementById("apps-modal-subtitle").textContent =
+                    data.updated_at ? `Terakhir dipindai: ${data.updated_at}` : "-";
+                filterModalApps();
+            }
+
+            lucide.createIcons();
+        });
+
+        // 5. Buka Modal Aplikasi Langsung dari State JavaScript (Tanpa Fetch)
+        function openAppsModal(clientId) {
+            const dev = devicesMap[clientId];
+            if (!dev) return;
+
+            activeModalClientId = clientId;
+            currentModalApps = Array.isArray(dev.apps) ? dev.apps : [];
+
+            document.getElementById("apps-modal-title").textContent = `Aplikasi Terinstal — ${dev.name || clientId}`;
+            document.getElementById("apps-modal-subtitle").textContent = dev.updated_at
+                ? `Terakhir dipindai: ${dev.updated_at}`
+                : "Belum ada riwayat pemindaian aplikasi";
+            document.getElementById("modal-app-search").value = "";
+
+            renderModalApps(currentModalApps);
+            document.getElementById("apps-modal").classList.remove("hidden");
+        }
+
+        function renderModalApps(apps) {
+            const bodyEl = document.getElementById("apps-modal-body");
+            const countEl = document.getElementById("apps-modal-count");
+            countEl.textContent = `${apps.length} aplikasi`;
+
+            if (!apps.length) {
+                bodyEl.innerHTML = `
+                    <div class="py-10 text-center text-xs text-gray-500">
+                        Tidak ada aplikasi yang cocok atau belum ada data tersimpan.
+                    </div>
+                `;
+                return;
+            }
+
+            bodyEl.innerHTML = apps.map(app => `
+                <div class="p-3 rounded-xl bg-gray-950 border border-gray-800/90 flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-xs font-semibold text-gray-100 truncate">${escapeHtml(app.name)}</p>
+                        <p class="text-[11px] text-gray-500 truncate mt-0.5">${escapeHtml(app.publisher || "-")}</p>
+                    </div>
+                    <span class="shrink-0 px-2 py-0.5 rounded-md bg-gray-900 border border-gray-800 text-[10px] font-mono text-indigo-300">
+                        ${escapeHtml(app.version || "-")}
+                    </span>
+                </div>
+            `).join("");
+        }
+
+        function filterModalApps() {
+            const q = document.getElementById("modal-app-search").value.toLowerCase().trim();
+            const filtered = currentModalApps.filter(app =>
+                (app.name || "").toLowerCase().includes(q) ||
+                (app.publisher || "").toLowerCase().includes(q)
+            );
+            renderModalApps(filtered);
+        }
+
+        function closeAppsModal() {
+            activeModalClientId = null;
+            document.getElementById("apps-modal").classList.add("hidden");
+        }
+
+        document.getElementById("apps-modal").addEventListener("click", (e) => {
+            if (e.target.id === "apps-modal") closeAppsModal();
+        });
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeAppsModal();
+        });
+
+        // =========================================================
+        // KONTROL MODAL PANDUAN KESEHATAN PERANGKAT (SLIDE CAROUSEL)
+        // =========================================================
+        let currentGuideSlide = 0;
+        let guideTouchStartX = 0;
+
+        function getGuideSlides() {
+            const track = document.getElementById("guide-slides-track");
+            return track ? Array.from(track.children) : [];
+        }
+
+        function renderGuideDots() {
+            const container = document.getElementById("guide-dots-container");
+            const slides = getGuideSlides();
+            if (!container) return;
+
+            container.innerHTML = slides.map((_, idx) => `
+                <button type="button"
+                    onclick="goToGuideSlide(${idx})"
+                    aria-label="Slide ${idx + 1}"
+                    class="h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                        idx === currentGuideSlide
+                            ? "w-6 bg-emerald-400"
+                            : "w-2 bg-gray-700 hover:bg-gray-600"
+                    }">
+                </button>
+            `).join("");
+        }
+
+        function updateGuideCarousel() {
+            const track = document.getElementById("guide-slides-track");
+            const subtitleEl = document.getElementById("guide-slide-subtitle");
+            const prevBtn = document.getElementById("btn-guide-prev");
+            const nextBtn = document.getElementById("btn-guide-next");
+            const slides = getGuideSlides();
+
+            if (!track || slides.length === 0) return;
+
+            // Geser track secara horizontal sesuai indeks slide aktif
+            track.style.transform = `translateX(-${currentGuideSlide * 100}%)`;
+
+            // Perbarui subjudul langkah di header modal
+            const activeSubtitle = slides[currentGuideSlide].dataset.subtitle || "";
+            if (subtitleEl) subtitleEl.textContent = activeSubtitle;
+
+            // Perbarui status tombol Sebelumnya
+            if (prevBtn) {
+                prevBtn.disabled = currentGuideSlide === 0;
+            }
+
+            // Perbarui tombol Berikutnya -> menjadi "Selesai" di slide terakhir
+            if (nextBtn) {
+                const isLast = currentGuideSlide === slides.length - 1;
+                if (isLast) {
+                    nextBtn.className = "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer shadow-md shadow-emerald-950/50";
+                    nextBtn.innerHTML = `<span>Selesai</span><i data-lucide="check" class="w-4 h-4"></i>`;
+                } else {
+                    nextBtn.className = "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition cursor-pointer shadow-md shadow-indigo-950/50";
+                    nextBtn.innerHTML = `<span>Berikutnya</span><i data-lucide="chevron-right" class="w-4 h-4"></i>`;
+                }
+            }
+
+            renderGuideDots();
+
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        function goToGuideSlide(index) {
+            const slides = getGuideSlides();
+            if (index < 0 || index >= slides.length) return;
+            currentGuideSlide = index;
+            updateGuideCarousel();
+        }
+
+        function nextGuideSlide() {
+            const slides = getGuideSlides();
+            if (currentGuideSlide < slides.length - 1) {
+                currentGuideSlide++;
+                updateGuideCarousel();
+            } else {
+                closeHealthGuideModal();
+            }
+        }
+
+        function prevGuideSlide() {
+            if (currentGuideSlide > 0) {
+                currentGuideSlide--;
+                updateGuideCarousel();
+            }
+        }
+
+        function openHealthGuideModal() {
+            const modal = document.getElementById("health-guide-modal");
+            if (!modal) return;
+            currentGuideSlide = 0;
+            modal.classList.remove("hidden");
+            updateGuideCarousel();
+        }
+
+        function closeHealthGuideModal() {
+            const modal = document.getElementById("health-guide-modal");
+            if (modal) modal.classList.add("hidden");
+        }
+
+        // Navigasi tombol panah kiri/kanan & Escape pada keyboard saat modal terbuka
+        document.addEventListener("keydown", (e) => {
+            const modal = document.getElementById("health-guide-modal");
+            if (!modal || modal.classList.contains("hidden")) return;
+
+            if (e.key === "ArrowRight") {
+                e.preventDefault();
+                nextGuideSlide();
+            } else if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                prevGuideSlide();
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                closeHealthGuideModal();
+            }
+        });
+
+        // Dukungan geser (swipe) jari ke kanan/kiri pada layar sentuh
+        const guideViewport = document.getElementById("guide-carousel-viewport");
+        if (guideViewport) {
+            guideViewport.addEventListener("touchstart", (e) => {
+                guideTouchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            guideViewport.addEventListener("touchend", (e) => {
+                const diffX = e.changedTouches[0].screenX - guideTouchStartX;
+                if (diffX < -45) {
+                    nextGuideSlide();
+                } else if (diffX > 45) {
+                    prevGuideSlide();
+                }
+            }, { passive: true });
+        }
+    </script>
+
+</body>
+</html>
