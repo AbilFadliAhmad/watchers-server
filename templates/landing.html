@@ -59,7 +59,6 @@
   <!-- Pola Grid Tipis dengan Efek Fade -->
   <div class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:32px_32px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
 </div>
-Use code with cautio
     <!-- Glassmorphism Navbar -->
     <header class="fixed top-0 left-0 right-0 z-50 bg-brand-950/70 border-b border-white/10 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -80,7 +79,10 @@ Use code with cautio
                 <nav class="hidden md:flex items-center gap-8">
                     <a href="#solusi" class="text-sm font-medium text-gray-300 hover:text-white hover:shadow-sm transition">Solusi</a>
                     <a href="#keunggulan" class="text-sm font-medium text-gray-300 hover:text-white hover:shadow-sm transition">Mengapa Kami</a>
-                    <a href="#pricing" class="text-sm font-medium text-gray-300 hover:text-white hover:shadow-sm transition">Harga & Lisensi</a>
+                    <a href="#telemetry" class="text-sm font-medium transition flex items-center gap-1.5">
+                        Bukti
+                    </a>
+                    <a href="#packages" class="text-sm font-medium text-gray-300 hover:text-white hover:shadow-sm transition">Harga & Lisensi</a>
                 </nav>
             </div>
         </div>
@@ -251,6 +253,51 @@ Use code with cautio
         </div>
     </section>
 
+    <!-- SECTION: FITUR UNGGULAN (FEATURES DEEP-DIVE) -->
+    <section id="solusi" class="py-24 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
+                <h2 class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">Kemampuan Aplikasi</h2>
+                <p class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+                    Ekosistem Kontrol Komprehensif
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Feature Box 1 -->
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-indigo-500/40 transition">
+                    <i data-lucide="lock" class="w-8 h-8 text-indigo-400 mb-4"></i>
+                    <h4 class="text-base font-bold text-white mb-2">Remote Screen Lock</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">Kunci layar PC klien secara instan saat sesi instruksi atau ujian berlangsung agar fokus siswa terjaga.</p>
+                </div>
+
+                <!-- Feature Box 2 -->
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-purple-500/40 transition">
+                    <i data-lucide="power" class="w-8 h-8 text-rose-400 mb-4"></i>
+                    <h4 class="text-base font-bold text-white mb-2">Mass Shutdown / Restart</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">Matikan atau nyalakan ulang seluruh PC lab dalam satu klik tanpa perlu mendatangi meja satu per satu.</p>
+                </div>
+
+                <!-- Feature Box 3 -->
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-emerald-500/40 transition">
+                    <i data-lucide="globe" class="w-8 h-8 text-emerald-400 mb-4"></i>
+                    <h4 class="text-base font-bold text-white mb-2">Broadcast URL</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">Perintahkan seluruh browser klien untuk membuka tautan materi atau ujian secara serentak.</p>
+                </div>
+
+                <!-- Feature Box 4: Pemisahan Ruangan Lab -->
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-emerald-500/40 transition">
+                    <i data-lucide="door-open" class="w-8 h-8 text-emerald-400 mb-4"></i>
+                    <h4 class="text-base font-bold text-white mb-2">Pemisahan Ruangan Lab</h4>
+                    <p class="text-xs text-gray-400 leading-relaxed">Pengelompokan PC per ruangan (LAB-01, LAB-02) untuk mempermudah pemantauan dan kontrol tiap lab.</p>                </div>
+
+            </div>
+
+        </div>
+    </section>
+
     <!-- SECTION: MENGAPA MEMILIH KAMI (WHY US) -->
     <section id="keunggulan" class="py-24 relative border-t border-white/5 bg-brand-950/60">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -305,45 +352,120 @@ Use code with cautio
         </div>
     </section>
 
-    <!-- SECTION: FITUR UNGGULAN (FEATURES DEEP-DIVE) -->
-    <section id="solusi" class="py-24 relative">
+    <!-- SECTION: LIVE TELEMETRY & SOCIAL PROOF -->
+    <section id="telemetry" class="py-24 relative border-t border-white/5 bg-brand-950/60">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            
+
+            <!-- Header Section (Struktur disamakan dengan section #keunggulan, #solusi, & #packages) -->
             <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
-                <h2 class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">Kemampuan Aplikasi</h2>
+                <h2 class="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">Public Telemetry</h2>
                 <p class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-                    Ekosistem Kontrol Komprehensif
+                    Bukti Penggunaan
+                </p>
+                <p class="text-gray-400 text-sm sm:text-base">
+                    Rangkuman data harian resmi dari komputer laboratorium tanpa menampilkan identitas pengguna.
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                
-                <!-- Feature Box 1 -->
-                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-indigo-500/40 transition">
-                    <i data-lucide="lock" class="w-8 h-8 text-indigo-400 mb-4"></i>
-                    <h4 class="text-base font-bold text-white mb-2">Remote Screen Lock</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed">Kunci layar PC klien secara instan saat sesi instruksi atau ujian berlangsung agar fokus siswa terjaga.</p>
+            <!-- 3 Kartu Ringkasan Utama -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-emerald-500/40 transition flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-mono uppercase tracking-wider text-gray-400">Perangkat Aktif Hari Ini</p>
+                        <p id="stat-today-devices" class="text-3xl sm:text-4xl font-black text-white font-mono mt-1">0</p>
+                        <p class="text-xs text-emerald-400 mt-1">PC terpantau aktif hari ini</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <i data-lucide="monitor-check" class="w-6 h-6"></i>
+                    </div>
                 </div>
 
-                <!-- Feature Box 2 -->
-                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-purple-500/40 transition">
-                    <i data-lucide="power" class="w-8 h-8 text-rose-400 mb-4"></i>
-                    <h4 class="text-base font-bold text-white mb-2">Mass Shutdown / Restart</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed">Matikan atau nyalakan ulang seluruh PC lab dalam satu klik tanpa perlu mendatangi meja satu per satu.</p>
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-indigo-500/40 transition flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-mono uppercase tracking-wider text-gray-400">Puncak Aktivitas (14 Hari)</p>
+                        <p id="stat-peak-devices" class="text-3xl sm:text-4xl font-black text-indigo-400 font-mono mt-1">0</p>
+                        <p class="text-xs text-gray-400 mt-1">Rekor PC aktif bersamaan</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                        <i data-lucide="trending-up" class="w-6 h-6"></i>
+                    </div>
                 </div>
 
-                <!-- Feature Box 3 -->
-                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-emerald-500/40 transition">
-                    <i data-lucide="globe" class="w-8 h-8 text-emerald-400 mb-4"></i>
-                    <h4 class="text-base font-bold text-white mb-2">Broadcast URL</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed">Perintahkan seluruh browser klien untuk membuka tautan materi atau ujian secara serentak.</p>
+                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-cyan-500/40 transition flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-mono uppercase tracking-wider text-gray-400">Rata-rata Harian</p>
+                        <p id="stat-avg-devices" class="text-3xl sm:text-4xl font-black text-cyan-400 font-mono mt-1">0</p>
+                        <p class="text-xs text-gray-400 mt-1">Perangkat aktif per hari</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                        <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid Seimbang 2 Kolom: Grafik Harian (Kiri) + Rangkuman Daerah & Ringkasan Teknis (Kanan) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+
+                <!-- Kolom Kiri: Grafik Batang Aktivitas 14 Hari Terakhir -->
+                <div class="p-6 sm:p-8 rounded-2xl bg-gray-900/60 border border-white/10 flex flex-col justify-between">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                        <div>
+                            <h3 class="text-base sm:text-lg font-bold text-white">Tren Check-in Harian</h3>
+                            <p class="text-xs text-gray-400 mt-0.5">Klik batang tanggal untuk melihat rincian daerah hari tersebut</p>
+                        </div>
+                        <span id="selected-date-badge" class="px-3 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-mono shrink-0">
+                            Hari Ini
+                        </span>
+                    </div>
+
+                    <!-- Area Grafik Batang -->
+                    <div id="activity-bar-chart" class="h-56 flex items-end justify-between gap-1.5 sm:gap-2.5 pt-8 pb-2 border-b border-white/10">
+                        <!-- Dirender otomatis oleh JS -->
+                    </div>
+
+                    <!-- Footer Grafik -->
+                    <div class="mt-4 flex items-center justify-between gap-2 text-xs text-gray-400">
+                        <span id="chart-selected-summary">Menampilkan data terbaru</span>
+                        <button type="button" onclick="resetRegionFilter()" class="text-indigo-400 hover:text-indigo-300 font-mono underline shrink-0">
+                            Reset ke Hari Ini
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Feature Box 4: Pemisahan Ruangan Lab -->
-                <div class="p-6 rounded-2xl bg-gray-900/60 border border-white/10 hover:border-emerald-500/40 transition">
-                    <i data-lucide="door-open" class="w-8 h-8 text-emerald-400 mb-4"></i>
-                    <h4 class="text-base font-bold text-white mb-2">Pemisahan Ruangan Lab</h4>
-                    <p class="text-xs text-gray-400 leading-relaxed">Pengelompokan PC per ruangan (LAB-01, LAB-02) untuk mempermudah pemantauan dan kontrol tiap lab.</p>                </div>
+                <!-- Kolom Kanan: Rangkuman Daerah (Dirancang padat meski hanya 2-3 kota) -->
+                <div class="p-6 sm:p-8 rounded-2xl bg-gray-900/60 border border-white/10 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 class="text-base sm:text-lg font-bold text-white">Distribusi Pengguna per Daerah</h3>
+                                <p class="text-xs text-gray-400 mt-0.5">Rincian perangkat aktif berdasarkan lokasi check-in</p>
+                            </div>
+                            <span id="region-count-pill" class="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
+                                3 Kota
+                            </span>
+                        </div>
+
+                        <!-- Kartu-kartu Kota (Lebih besar & detail agar 3 kota tetap mengisi ruang dengan proporsional) -->
+                        <div id="regional-list" class="space-y-3.5">
+                            <!-- Dirender otomatis oleh JS -->
+                        </div>
+                    </div>
+
+                    <!-- Info Tambahan di Bawah Daftar Kota agar Tampilan Seimbang -->
+                    <div class="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 gap-3">
+                        <div class="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                            <p class="text-[11px] font-mono text-gray-400">Dominasi Platform</p>
+                            <p class="text-xs font-bold text-white mt-0.5">Windows 10 / 11 (94%)</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                            <p class="text-[11px] font-mono text-gray-400">Metode Verifikasi</p>
+                            <p class="text-xs font-bold text-emerald-400 mt-0.5 flex items-center gap-1.5">
+                                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                                Daily Heartbeat SHA-256
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
             </div>
 
@@ -420,11 +542,23 @@ Use code with cautio
                         <h3 class="text-2xl font-bold text-white mt-1">Pro Edition</h3>
                         <p class="text-xs text-gray-400 mt-2">Untuk sekolah atau kampus yang butuh analisis dan kontrol mendalam.</p>
                         
-                        <div class="my-6">
-                            <span class="text-4xl font-extrabold text-white font-mono">Rp 3.500.000</span>
-                            <span class="text-xs text-indigo-300 block mt-1">Lisensi Seumur Hidup</span>
-                        </div>
+                        <div class="my-6 relative inline-flex flex-col items-start">
+                            <!-- Bagian harga yang diburamkan -->
+                            <div class="select-none blur-sm opacity-40 pointer-events-none">
+                                <div class="inline-flex items-baseline gap-1.5 font-mono tabular-nums">
+                                <span class="text-xl font-semibold text-gray-400">Rp</span>
+                                <span class="text-4xl font-extrabold text-white">3.500.000</span>
+                                </div>
+                                <span class="text-xs text-indigo-300 block mt-1">Lisensi Seumur Hidup</span>
+                            </div>
 
+                            <!-- Lencana status di atasnya -->
+                            <div class="absolute inset-0 flex items-center">
+                                <span class="rounded-full bg-indigo-500/20 border border-indigo-400/30 px-3.5 py-1 text-xs font-semibold text-indigo-200 backdrop-blur-md">
+                                Segera Hadir
+                                </span>
+                            </div>
+                        </div>  
                         <ul class="space-y-3 text-xs text-gray-200 my-8">
                             <li class="flex items-center gap-2.5">
                                 <i data-lucide="check" class="w-4 h-4 text-indigo-400"></i>
@@ -501,26 +635,111 @@ Use code with cautio
     </section>
 
     <!-- SECTION: FOOTER LENGKAP (TAHAP AKHIR) -->
-    <footer class="py-12 border-t border-white/10 bg-brand-950 text-gray-400 text-xs">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-6">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-                    <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
-                </div>
-                <span class="font-bold text-white text-sm">WATCHERS CONTROL CENTER</span>
-            </div>
-            
-            <p>&copy; <span id="year-current"></span> Watchers Security. Hak Cipta Dilindungi Undang-Undang.</p>
-            
-            <div class="flex items-center gap-6 text-gray-400">
-                <a href="/login" class="hover:text-white transition">Portal Login</a>
-                <a href="#solusi" class="hover:text-white transition">Fitur</a>
-            </div>
-        </div>
+    <footer class="py-12 border-t border-white/10 bg-brand-950 text-gray-400 text-sm text-center">
+        <p>&copy; <span id="year-current"></span> Watchers Security. Hak Cipta Dilindungi Undang-Undang.</p>
     </footer>
 
     <script>
         lucide.createIcons();
+
+        const yearEl = document.getElementById('year-current');
+        if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+        // Contoh data dummy realistis dengan 3 kota
+        const DUMMY_TELEMETRY_DATA = {
+            last_updated: "18 Nov 2026, 10:20 WIB",
+            daily_activity: [
+                { date: "18 Nov", full_date: "18 November 2026 (Hari Ini)", total_devices: 94, regions: [
+                    { city: "Jombang", region: "Jawa Timur", devices: 42 },
+                ]}
+            ]
+        };
+
+        function renderTelemetry(data) {
+            const days = data.daily_activity;
+            const latestDay = days[days.length - 1];
+
+            // Hitung Ringkasan
+            const peakDevices = Math.max(...days.map(d => d.total_devices));
+            const sumDevices = days.reduce((acc, d) => acc + d.total_devices, 0);
+
+            document.getElementById('telemetry-last-sync').textContent = data.last_updated;
+            document.getElementById('stat-today-devices').textContent = latestDay.total_devices;
+            document.getElementById('stat-peak-devices').textContent = peakDevices;
+            document.getElementById('stat-avg-devices').textContent = Math.round(sumDevices / days.length);
+
+            // Render Grafik Batang
+            const chartContainer = document.getElementById('activity-bar-chart');
+            const maxDevices = Math.max(peakDevices, 1);
+            chartContainer.innerHTML = '';
+
+            days.forEach((day, index) => {
+                const heightPercent = Math.max(Math.round((day.total_devices / maxDevices) * 100), 10);
+                const isLatest = index === days.length - 1;
+
+                const barWrapper = document.createElement('button');
+                barWrapper.type = 'button';
+                barWrapper.className = 'group flex-1 h-full flex flex-col items-center justify-end gap-2 focus:outline-none';
+                barWrapper.onclick = () => renderRegions(day.regions, day.full_date, day.total_devices);
+
+                barWrapper.innerHTML = `
+                    <span class="text-[10px] font-mono text-gray-400 group-hover:text-white transition">
+                        ${day.total_devices}
+                    </span>
+                    <div class="w-full max-w-[26px] rounded-t-lg transition-all duration-300 ${
+                        isLatest
+                        ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-lg shadow-emerald-500/20'
+                        : 'bg-indigo-500/30 group-hover:bg-indigo-400'
+                    }" style="height: ${heightPercent}%"></div>
+                    <span class="text-[10px] font-mono ${isLatest ? 'text-emerald-400 font-bold' : 'text-gray-500'}">
+                        ${day.date.split(' ')[0]}
+                    </span>
+                `;
+                chartContainer.appendChild(barWrapper);
+            });
+
+            renderRegions(latestDay.regions, latestDay.full_date, latestDay.total_devices);
+        }
+
+        function renderRegions(regions, dateLabel, totalDevices) {
+            const listContainer = document.getElementById('regional-list');
+            document.getElementById('selected-date-badge').textContent = dateLabel;
+            document.getElementById('region-count-pill').textContent = `${regions.length} Daerah`;
+            document.getElementById('chart-selected-summary').textContent = `Total ${totalDevices} perangkat aktif • ${dateLabel}`;
+
+            listContainer.innerHTML = regions.map((item, idx) => {
+                const pct = Math.round((item.devices / totalDevices) * 100);
+                return `
+                    <div class="p-4 rounded-xl bg-white/[0.02] border border-white/10 hover:border-indigo-500/30 transition space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-mono text-xs font-bold flex items-center justify-center">
+                                    #${idx + 1}
+                                </span>
+                                <div>
+                                    <p class="text-sm font-bold text-white leading-none">${item.city}</p>
+                                    <p class="text-[11px] text-gray-400 mt-1">${item.region}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-extrabold font-mono text-emerald-400">${item.devices} PC</p>
+                                <p class="text-[11px] font-mono text-gray-500">${pct}% porsi</p>
+                            </div>
+                        </div>
+                        <div class="w-full h-2 rounded-full bg-gray-950 overflow-hidden">
+                            <div class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function resetRegionFilter() {
+            const latestDay = DUMMY_TELEMETRY_DATA.daily_activity[DUMMY_TELEMETRY_DATA.daily_activity.length - 1];
+            renderRegions(latestDay.regions, latestDay.full_date, latestDay.total_devices);
+        }
+
+        renderTelemetry(DUMMY_TELEMETRY_DATA);
     </script>
 </body>
 </html>
