@@ -75,7 +75,7 @@ def upsert_client_and_diagnostics(
             INSERT INTO clients (id, name, is_locked, message, password)
             VALUES (?, ?, 0, '', '')
             ON CONFLICT(id) DO NOTHING
-        """, (device_id, hostname))
+        """, (device_id, hostname))  
 
         # 2. Insert atau Update data diagnostik jika dikirim oleh agent
         if isinstance(diagnostics, dict):

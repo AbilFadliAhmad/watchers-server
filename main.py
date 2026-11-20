@@ -409,8 +409,11 @@ async def get_landing(request: Request, response: Response):
     except HTTPException:
             # Jika token tidak ada / expired (401), biarkan lanjut menampilkan halaman login
             pass
-    
     return templates.TemplateResponse(request=request, name="landing.html")
+
+@app.get("/license")
+async def get_landing(request: Request):
+    return templates.TemplateResponse(request=request, name="license.html")
 
 @app.get("/control")
 async def get_control(request: Request, response: Response):

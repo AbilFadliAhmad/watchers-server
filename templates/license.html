@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aktivasi Lisensi & Domain — Watchers Server</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-center items-center px-4 py-8 sm:px-6">
+
+  <main class="w-full max-w-md sm:max-w-lg bg-slate-900/90 backdrop-blur border border-slate-800 rounded-2xl shadow-2xl p-5 sm:p-8">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-400 shrink-0">
+          <i data-lucide="shield-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-white leading-tight">Aktivasi Lisensi Server</h1>
+          <p class="text-xs text-slate-400 mt-0.5">Tautkan domain server ke Credential Key Watchers Hub</p>
+        </div>
+      </div>
+
+      <!-- Badge Status Lokal -->
+      <span id="credentialBadge" class="self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+        Belum Terdaftar
+      </span>
+    </div>
+
+    <!-- Form Utama (Hanya Key & Domain) -->
+    <form id="bindDomainForm" class="space-y-4">
+      <div>
+        <label for="credentialKey" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+          Credential Key
+        </label>
+        <input
+          type="text"
+          id="credentialKey"
+          name="credential_key"
+          placeholder="WCH-XXXX-XXXX-XXXX"
+          autocomplete="off"
+          required
+          class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-3 text-sm font-mono uppercase text-white placeholder-slate-600 outline-none transition"
+        />
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between gap-2 mb-1.5">
+          <label for="domainInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Domain / Host Server
+          </label>
+          <button
+            type="button"
+            id="btnUseCurrentHost"
+            class="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition cursor-pointer"
+          >
+            Pakai host saat ini
+          </button>
+        </div>
+        <input
+          type="text"
+          id="domainInput"
+          name="domain"
+          placeholder="contoh: server.sekolah.sch.id atau 192.168.1.10:8003"
+          required
+          class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none transition"
+        />
+      </div>
+
+      <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+        <button
+          type="submit"
+          id="btnSubmitBind"
+          class="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold text-sm py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/20 transition cursor-pointer"
+        >
+          <i data-lucide="link" class="w-4 h-4"></i>
+          <span>Tautkan Domain</span>
+        </button>
+
+        <button
+          type="button"
+          id="btnResetLocal"
+          title="Reset status lokal browser"
+          class="inline-flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium rounded-xl transition cursor-pointer"
+        >
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          <span class="sm:hidden">Reset Status Lokal</span>
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    const HUB_BASE_URL = "https://watchers-hub-five.vercel.app";
+    const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+
+    const form = document.getElementById("bindDomainForm");
+    const credentialKeyInput = document.getElementById("credentialKey");
+    const domainInput = document.getElementById("domainInput");
+    const btnSubmitBind = document.getElementById("btnSubmitBind");
+    const btnUseCurrentHost = document.getElementById("btnUseCurrentHost");
+    const btnResetLocal = document.getElementById("btnResetLocal");
+    const credentialBadge = document.getElementById("credentialBadge");
+    const statusBanner = document.getElementById("statusBanner");
+    const statusBannerText = document.getElementById("statusBannerText");
+
+    function syncLocalCredentialUI() {
+      const isCredential = localStorage.getItem("is_credential") === "true";
+      const savedKey = localStorage.getItem("watchers_credential_key") || "";
+      const savedDomain = localStorage.getItem("watchers_bound_domain") || window.location.host;
+
+      if (savedKey) credentialKeyInput.value = savedKey;
+      if (savedDomain) domainInput.value = savedDomain;
+
+      if (isCredential) {
+        credentialBadge.className =
+          "self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0";
+        credentialBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Terverifikasi`;
+
+        statusBanner.className =
+          "mb-6 p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-800/50 text-xs text-emerald-300 flex items-start gap-2.5 leading-relaxed";
+        statusBannerText.innerHTML = `Status lokal <code>is_credential = true</code>. Domain <strong>${savedDomain}</strong> terhubung dengan key <strong>${savedKey}</strong>.`;
+      } else {
+        credentialBadge.className =
+          "self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0";
+        credentialBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Belum Terdaftar`;
+
+        statusBanner.className =
+          "mb-6 p-3.5 rounded-xl bg-slate-800/70 border border-slate-700/70 text-xs text-slate-300 flex items-start gap-2.5 leading-relaxed";
+        statusBannerText.innerHTML = `Domain server ini belum terikat pada lisensi lokal (<code>is_credential</code> belum aktif). Masukkan Credential Key dan Domain untuk mengaktifkan layanan.`;
+      }
+    }
+
+    function markCredentialAsBound(key, domain) {
+      localStorage.setItem("is_credential", "true");
+      localStorage.setItem("watchers_credential_key", key);
+      localStorage.setItem("watchers_bound_domain", domain);
+      syncLocalCredentialUI();
+    }
+
+    btnUseCurrentHost.addEventListener("click", () => {
+      domainInput.value = window.location.host;
+    });
+
+    btnResetLocal.addEventListener("click", () => {
+      localStorage.removeItem("is_credential");
+      localStorage.removeItem("watchers_credential_key");
+      localStorage.removeItem("watchers_bound_domain");
+      syncLocalCredentialUI();
+      Swal.fire({
+        icon: "info",
+        title: "Status Lokal Direset",
+        text: "Kunci is_credential di localStorage telah dihapus.",
+        background: "#0f172a",
+        color: "#f8fafc",
+        timer: 1600,
+        showConfirmButton: false
+      });
+    });
+
+    // Pop-up Konfirmasi Pemutusan Domain -> Input Email Valid -> Kirim & Verifikasi OTP
+    async function promptOtpTransferFlow(credKey, domain, conflictMessage) {
+      // Langkah 1: Konfirmasi & Input Email Valid untuk Kirim OTP
+      const emailStep = await Swal.fire({
+        icon: "warning",
+        title: "Domain Sudah Tertaut",
+        html: `
+          <p class="text-xs text-slate-300 mb-4 leading-relaxed">${conflictMessage}</p>
+          <label class="block text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            Alamat Email Valid untuk Verifikasi OTP
+          </label>
+        `,
+        input: "email",
+        inputPlaceholder: "nama@domain.com",
+        showCancelButton: true,
+        confirmButtonText: "Kirim Kode OTP",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#4f46e5",
+        cancelButtonColor: "#334155",
+        background: "#0f172a",
+        color: "#f8fafc",
+        showLoaderOnConfirm: true,
+        inputValidator: (value) => {
+          const clean = (value || "").trim();
+          if (!clean) return "Alamat email wajib diisi!";
+          if (!EMAIL_REGEX.test(clean)) return "Format alamat email tidak valid!";
+          return null;
+        },
+        preConfirm: async (rawEmail) => {
+          const validEmail = rawEmail.trim().toLowerCase();
+          try {
+            const res = await fetch(`${HUB_BASE_URL}/api/request-transfer-otp`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                credential_key: credKey,
+                domain: domain,
+                email: validEmail
+              })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+              Swal.showValidationMessage(data.message || "Gagal mengirim kode OTP.");
+              return false;
+            }
+            return validEmail;
+          } catch (err) {
+            Swal.showValidationMessage("Gagal terhubung ke server lisensi.");
+            return false;
+          }
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+      });
+
+      if (!emailStep.isConfirmed || !emailStep.value) return;
+      const verifiedEmail = emailStep.value;
+
+      // Langkah 2: Input 6 Digit Kode OTP dari Gmail
+      const otpStep = await Swal.fire({
+        icon: "info",
+        title: "Masukkan Kode OTP",
+        html: `
+          <p class="text-xs text-slate-300 mb-3 leading-relaxed">
+            Kode OTP 6 digit telah dikirim ke <strong class="text-indigo-400">${verifiedEmail}</strong>. Kode berlaku selama 10 menit.
+          </p>
+        `,
+        input: "text",
+        inputAttributes: {
+          maxlength: "6",
+          inputmode: "numeric",
+          autocomplete: "one-time-code",
+          style: "text-align:center; letter-spacing:0.35em; font-family:monospace; font-size:1.25rem;"
+        },
+        inputPlaceholder: "000000",
+        showCancelButton: true,
+        confirmButtonText: "Verifikasi & Putuskan Tautan",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#4f46e5",
+        cancelButtonColor: "#334155",
+        background: "#0f172a",
+        color: "#f8fafc",
+        showLoaderOnConfirm: true,
+        inputValidator: (value) => {
+          const code = (value || "").trim();
+          if (!/^\d{6}$/.test(code)) return "Masukkan 6 digit angka kode OTP!";
+          return null;
+        },
+        preConfirm: async (otpVal) => {
+          try {
+            const res = await fetch(`${HUB_BASE_URL}/api/transfer-domain`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                credential_key: credKey,
+                domain: domain,
+                email: verifiedEmail,
+                otp_code: otpVal.trim()
+              })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+              Swal.showValidationMessage(data.message || "Kode OTP tidak valid atau sudah kedaluwarsa.");
+              return false;
+            }
+            return data;
+          } catch (err) {
+            Swal.showValidationMessage("Gagal memverifikasi OTP ke server.");
+            return false;
+          }
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+      });
+
+      if (otpStep.isConfirmed && otpStep.value) {
+        const resultData = otpStep.value;
+        markCredentialAsBound(resultData.credential_key || credKey, resultData.domain || domain);
+        await Swal.fire({
+          icon: "success",
+          title: "Domain Berhasil Dipindahkan",
+          text: resultData.message,
+          background: "#0f172a",
+          color: "#f8fafc"
+        });
+      }
+    }
+
+    // Submit Form Utama
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const credKey = credentialKeyInput.value.trim().toUpperCase();
+      const domain = domainInput.value.trim().toLowerCase();
+
+      btnSubmitBind.disabled = true;
+      btnSubmitBind.innerHTML = `<span>Memverifikasi...</span>`;
+
+      try {
+        const res = await fetch(`${HUB_BASE_URL}/api/bind-domain`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            credential_key: credKey,
+            domain: domain
+          })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          markCredentialAsBound(data.credential_key || credKey, data.domain || domain);
+          await Swal.fire({
+            icon: "success",
+            title: "Berhasil Terhubung",
+            text: data.message,
+            background: "#0f172a",
+            color: "#f8fafc"
+          });
+        } else if (res.status === 409 && data.conflict) {
+          await promptOtpTransferFlow(credKey, domain, data.message);
+        } else {
+          await Swal.fire({
+            icon: "error",
+            title: "Pendaftaran Ditolak",
+            text: data.message || "Gagal menautkan domain ke lisensi.",
+            background: "#0f172a",
+            color: "#f8fafc"
+          });
+        }
+      } catch (err) {
+        await Swal.fire({
+          icon: "error",
+          title: "Koneksi Gagal",
+          text: "Tidak dapat terhubung ke server lisensi Watchers Hub.",
+          background: "#0f172a",
+          color: "#f8fafc"
+        });
+      } finally {
+        btnSubmitBind.disabled = false;
+        btnSubmitBind.innerHTML = `<i data-lucide="link" class="w-4 h-4"></i><span>Tautkan Domain</span>`;
+        lucide.createIcons();
+      }
+    });
+
+    syncLocalCredentialUI();
+  </script>
+</body>
+</html>
