@@ -10,7 +10,10 @@ import os
 from fastapi import File, Form, HTTPException, UploadFile, status
 from client_helper import delete_installer_meta, parse_version_from_filename, save_installer_meta, set_active_installer_config
 import re
+from dotenv import load_dotenv
+import httpx
 
+load_dotenv()
 router = APIRouter(prefix="/api", tags=["Management"])
 DB_NAME = "watchers.db"
 
@@ -164,8 +167,7 @@ def get_violation_advice(total_count: int) -> dict:
             "icon": "shield-alert",
             "advice": "Tingkat pelanggaran sangat tinggi (>5 kali). Berpotensi mengganggu ketertiban praktikum.",
             "recommendation": "Kunci Layar selama 1 harian / Skorsing sesi praktikum & laporkan audit log ini ke Direktur/Staf."
-        }
-    
+        }   
 async def get_logs_data(
     current_user: dict, 
     action: Optional[str] = None, 
@@ -329,6 +331,85 @@ def fetch_stream_config_from_db():
             },
         }
     return config
+
+# HELPER GET DEVICE IDS FROM DOMAIN IN WATCHERS HUB
+async def fetch_domain_devices(domain: str) -> dict:
+    """Mengambil data lisensi, daftar device_id dari Hub, dan mencocokkannya dengan tabel clients di watchers.db."""
+    default_data = {
+        "bound": False,
+        "credential_key": "",
+        "tier": "",
+        "max_devices": 0,
+        "expired_at": "",
+        "device_ids": [],
+        "devices": [],
+    }
+    if not domain:
+        return default_data
+
+    HUB_BASE_URL = "https://watchers-hub-five.vercel.app"
+    HUB_INTERNAL_SECRET = os.environ.get("HUB_INTERNAL_SECRET", "").strip()
+
+    headers = {"Content-Type": "application/json"}
+    if HUB_INTERNAL_SECRET:
+        headers["X-Hub-Internal-Secret"] = HUB_INTERNAL_SECRET
+
+    result_data = default_data.copy()
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(
+                f"{HUB_BASE_URL}/api/domain-devices",
+                json={"domain": domain},
+                headers=headers,
+            )
+            if resp.status_code == 200:
+                payload = resp.json()
+                result_data["bound"] = bool(payload.get("bound", False))
+                result_data["credential_key"] = payload.get("credential_key", "")
+                result_data["tier"] = payload.get("tier", "")
+                result_data["max_devices"] = int(payload.get("max_devices", 0))
+                result_data["expired_at"] = payload.get("expired_at", "")
+                result_data["device_ids"] = payload.get("device_ids", [])
+    except Exception as e:
+        print(f"[!] Gagal mengambil /api/domain-devices untuk domain '{domain}': {e}", flush=True)
+        return result_data
+
+    device_ids = result_data["device_ids"]
+    if not device_ids:
+        return result_data
+
+    # Ambil data matching dari tabel clients di watchers.db
+    conn = sqlite3.connect("watchers.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    try:
+        placeholders = ",".join("?" for _ in device_ids)
+        cursor.execute(
+            f"SELECT id, name, is_locked, message FROM clients WHERE id IN ({placeholders})",
+            tuple(device_ids),
+        )
+        client_map = {row["id"]: dict(row) for row in cursor.fetchall()}
+
+        devices = []
+        for dev_id in device_ids:
+            client_info = client_map.get(dev_id)
+            client_name = (client_info.get("name") or "").strip() if client_info else ""
+            devices.append({
+                "device_id": dev_id,
+                "name": client_name if client_name else "unknown",
+                "is_locked": int(client_info.get("is_locked", 0)) if client_info else 0,
+                "message": client_info.get("message", "") if client_info else "",
+                "registered_locally": client_info is not None,
+            })
+
+        result_data["devices"] = devices
+    finally:
+        cursor.close()
+        conn.close()
+
+    return result_data
 
 # --- PYDANTIC SCHEMAS ---
 class RoomCreateSchema(BaseModel):

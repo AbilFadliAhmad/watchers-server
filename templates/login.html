@@ -169,17 +169,6 @@
                 btnSubmit.classList.remove('opacity-70');
             }
         }
-        (function checkLocalCredentialGuard() {
-            const isCredentialActive = localStorage.getItem("is_credential") === "true";
-            const boundDomain = localStorage.getItem("watchers_bound_domain") || "";
-
-            // Jika belum pernah mendaftarkan domain (atau host berubah), arahkan / tampilkan tombol ke /license
-            if (!isCredentialActive || (boundDomain && boundDomain !== window.location.host)) {
-            if (window.location.pathname !== "/license") {
-                window.location.href = "/license";
-            }
-            }
-        })();
     </script>
 </body>
 </html>

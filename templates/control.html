@@ -1352,15 +1352,45 @@
 
         document.addEventListener("DOMContentLoaded", updateMobileActionUI);
 
-        (function checkLocalCredentialGuard() {
+        (async function checkLocalCredentialGuard() {
+            const HUB_BASE_URL = "https://watchers-hub-five.vercel.app";
+            const currentHost = window.location.host;
             const isCredentialActive = localStorage.getItem("is_credential") === "true";
             const boundDomain = localStorage.getItem("watchers_bound_domain") || "";
 
-            // Jika belum pernah mendaftarkan domain (atau host berubah), arahkan / tampilkan tombol ke /license
-            if (!isCredentialActive || (boundDomain && boundDomain !== window.location.host)) {
+            // 1. Jika localStorage sudah valid dan domain cocok, langsung izinkan tanpa request API
+            if (isCredentialActive && boundDomain === currentHost) {
+                return;
+            }
+
+            // 2. Jika localStorage belum ada / belum aktif / domain berubah, cek ke Watchers Hub dulu
+            try {
+                const res = await fetch(`${HUB_BASE_URL}/api/check-domain`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ domain: currentHost }),
+                });
+
+                if (res.ok) {
+                const data = await res.json();
+                if (data.bound) {
+                    // Domain sudah terdaftar di Watchers Hub -> simpan ke localStorage dan batalkan redirect
+                    localStorage.setItem("is_credential", "true");
+                    localStorage.setItem("watchers_bound_domain", currentHost);
+                    if (data.credential_key) {
+                    localStorage.setItem("watchers_credential_key", data.credential_key);
+                    }
+                    return;
+                }
+                }
+            } catch (err) {
+                console.warn("[Watchers] Gagal mengecek status domain ke Watchers Hub:", err);
+            }
+
+            // 3. Jika domain memang belum terdaftar di Watchers Hub, arahkan ke /license
+            localStorage.removeItem("is_credential");
             if (window.location.pathname !== "/license") {
                 window.location.href = "/license";
-            }
             }
         })();
 

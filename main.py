@@ -9,10 +9,11 @@ import os
 import shutil
 from auth import (router as auth_router)
 from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_diagnostics, get_all_diagnostics, verify_client_password
-from management import (router as management_router, get_management_data, fetch_stream_config_from_db, get_logs_data, record_activity_logs)
+from management import (router as management_router, get_management_data, fetch_stream_config_from_db, get_logs_data, record_activity_logs, fetch_domain_devices)
 from auth_middleware import get_current_user
 from typing import Optional
 from init_db import init_db
+from functools import wraps
 from verify_uninstall import router as uninstall_router
 
 # Init DB
@@ -68,6 +69,22 @@ async def broadcast_stream_config():
     STREAM_CONFIG = fetch_stream_config_from_db()
     await sio.emit("update_config", STREAM_CONFIG)
     print(f"[*] STREAM_CONFIG dibroadcast ulang: {STREAM_CONFIG}")
+
+# HELPER FUNCTION FOR GET DOMAIN
+def _get_current_domain(request: Request) -> str:
+    # 1. Prioritaskan X-Forwarded-Host (jika di balik Nginx / Cloudflare Tunnel)
+    forwarded_host = request.headers.get("x-forwarded-host", "").strip()
+    if forwarded_host:
+        # Ambil host pertama jika dipisahkan koma, lalu buang nomor port jika ada
+        return forwarded_host.split(",")[0].strip().split(":")[0].lower()
+
+    # 2. Fallback ke header Host standar
+    host = request.headers.get("host", "").strip()
+    if host:
+        return host.split(":")[0].lower()
+
+    # 3. Fallback ke base_url
+    return (request.base_url.hostname or "").lower()
 
 # --- SOCKET.IO EVENT HANDLERS ---
 @sio.event
@@ -296,7 +313,6 @@ async def on_send_command(sid, data):
 # Menyimpan timestamp mulai (detik presisi tinggi) per device_id
 _diag_timers: dict[str, float] = {}
 
-
 @sio.on("request_all_diagnostics")  # type: ignore
 async def on_request_all_diagnostics(sid, data=None):
     target_id = data.get("device_id", "all") if isinstance(data, dict) else "all"
@@ -377,153 +393,181 @@ async def on_verify_unlock_password(sid, data):
 
     await verify_client_password(input_password=input_password, device_id=device_id, sid=sid, sio=sio)
 
+
+# --- FASTAPI DECORATOR ---
+def _copy_set_cookies(src_response: Response, target_response):
+    """Menyalin header set-cookie (misal saat refresh token) ke Response/TemplateResponse."""
+    if src_response is not None and hasattr(target_response, "headers"):
+        for key, value in src_response.headers.items():
+            if key.lower() == "set-cookie":
+                target_response.headers.append("set-cookie", value)
+    return target_response
+
+
+def guest_only(redirect_to: str = "/control"):
+    """
+    Untuk halaman publik/tamu (/, /landing, /login):
+    Jika user sudah login -> redirect ke /control.
+    Jika belum login (401) -> lanjut tampilkan halaman.
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            request: Request = kwargs.get("request")
+            response: Response = kwargs.get("response") or Response()
+
+            try:
+                user = await get_current_user(request, response)
+                if user:
+                    res = RedirectResponse(url=redirect_to, status_code=status.HTTP_302_FOUND)
+                    return _copy_set_cookies(response, res)
+            except HTTPException:
+                pass
+
+            result = await func(*args, **kwargs)
+            return _copy_set_cookies(response, result)
+
+        return wrapper
+    return decorator
+
+def login_required(login_url: str = "/login"):
+    """
+    Untuk halaman terproteksi (/control, /logs, /health, dll.):
+    Jika belum login (401) -> otomatis redirect ke login_url.
+    Jika sudah login -> menyimpan objek user ke `request.state.user` dan menyalin set-cookie.
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            request: Request = kwargs.get("request")
+            response: Response = kwargs.get("response") or Response()
+
+            try:
+                user = await get_current_user(request, response)
+                if not user:
+                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+                request.state.user = user
+            except HTTPException as e:
+                if e.status_code == status.HTTP_401_UNAUTHORIZED:
+                    return RedirectResponse(url=login_url, status_code=status.HTTP_302_FOUND)
+                raise
+
+            result = await func(*args, **kwargs)
+            return _copy_set_cookies(response, result)
+
+        return wrapper
+    return decorator
+
 # --- FASTAPI HTTP ROUTES ---
 @app.get("/")
+@guest_only("/control")
 async def get_home(request: Request, response: Response):
     """Menyajikan halaman utama."""
-    try:
-            # Cek sesi autentikasi pengguna saat ini
-            user = await get_current_user(request, response)
-            if user:
-                return RedirectResponse(url="/control", status_code=status.HTTP_302_FOUND)
-            else:
-                # Memicu HTTPException secara manual agar melompat ke blok except di bawah
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    except HTTPException:
-            # Jika token tidak ada / expired (401), biarkan lanjut menampilkan halaman login
-            pass
-    
     return templates.TemplateResponse(request=request, name="index.html")
 
+
 @app.get("/landing")
+@guest_only("/control")
 async def get_landing(request: Request, response: Response):
     """Menyajikan halaman landing."""
-    try:
-            # Cek sesi autentikasi pengguna saat ini
-            user = await get_current_user(request, response)
-            if user:
-                return RedirectResponse(url="/control", status_code=status.HTTP_302_FOUND)
-            else:
-                # Memicu HTTPException secara manual agar melompat ke blok except di bawah
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    except HTTPException:
-            # Jika token tidak ada / expired (401), biarkan lanjut menampilkan halaman login
-            pass
     return templates.TemplateResponse(request=request, name="landing.html")
 
 @app.get("/license")
-async def get_landing(request: Request):
-    return templates.TemplateResponse(request=request, name="license.html")
+@login_required("/login")
+async def get_license(request: Request, response: Response):
+    domain = _get_current_domain(request)
+    domain_data = await fetch_domain_devices(domain)
+    devices = domain_data["devices"]
+
+    return templates.TemplateResponse(
+        request=request,
+        name="license.html",
+        context={
+            "current_domain": domain,
+            "is_bound": domain_data["bound"],
+            "credential_key": domain_data["credential_key"],
+            "tier": domain_data["tier"],
+            "max_devices": domain_data["max_devices"],
+            "devices": devices,
+            "expired_at": domain_data["expired_at"],
+        },
+    )
 
 @app.get("/control")
+@login_required("/")
 async def get_control(request: Request, response: Response):
     """Menyajikan halaman Web Dashboard dengan data manajemen terpadu."""
-    try:
-        user = await get_current_user(request, response)
-        mgmt_data = await get_management_data(user.get("role", ""))
-        print(f"[*] Data manajemen untuk groups {mgmt_data['groups']} ", flush=True)
+    user = request.state.user
+    mgmt_data = await get_management_data(user.get("role", ""))
+    print(f"[*] Data manajemen untuk groups {mgmt_data['groups']} ", flush=True)
 
-        template_res =  templates.TemplateResponse(
-            request=request,
-            name="control.html",
-            context={
-                "user": user,
-                "users": mgmt_data["users"],
-                "rooms": mgmt_data["rooms"],
-                "groups": mgmt_data["groups"],
-                "clients": mgmt_data["clients"],
-                "roles": mgmt_data["roles"],
-                "installers": mgmt_data["installers"],
-                "stream_config": STREAM_CONFIG
-            }
-        )
-
-        # Salin cookie dari dependency ke TemplateResponse
-        for key, value in response.headers.items():
-            if key.lower() == "set-cookie":
-                template_res.headers.append("set-cookie", value)
-
-        return template_res
-
-    except HTTPException as e:
-        if e.status_code == status.HTTP_401_UNAUTHORIZED:
-            return RedirectResponse(
-                url="/", status_code=status.HTTP_302_FOUND
-            )
-        raise e
+    return templates.TemplateResponse(
+        request=request,
+        name="control.html",
+        context={
+            "user": user,
+            "users": mgmt_data["users"],
+            "rooms": mgmt_data["rooms"],
+            "groups": mgmt_data["groups"],
+            "clients": mgmt_data["clients"],
+            "roles": mgmt_data["roles"],
+            "installers": mgmt_data["installers"],
+            "stream_config": STREAM_CONFIG,
+        },
+    )
 
 @app.get("/login", response_class=HTMLResponse)
+@guest_only("/control")
 async def get_login_page(request: Request, response: Response):
-    """Menyajikan halaman login. Jika pengguna sudah login, redirect ke halaman utama."""
-    try:
-        # Cek sesi autentikasi pengguna saat ini
-        user = await get_current_user(request, response)
-        if user:
-            return RedirectResponse(url="/control", status_code=status.HTTP_302_FOUND)
-        else:
-            # Memicu HTTPException secara manual agar melompat ke blok except di bawah
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-
-    except HTTPException:
-            # Jika token tidak ada / expired (401), biarkan lanjut menampilkan halaman login
-            pass
-
+    """Menyajikan halaman login. Jika pengguna sudah login, redirect ke /control."""
     return templates.TemplateResponse(request=request, name="login.html")
 
 @app.get("/logs", response_class=HTMLResponse)
+@login_required("/login")
 async def get_logs_page(
     request: Request,
     response: Response,
     action: Optional[str] = Query(None),
-    time_range: Optional[str] = Query("1w")
+    time_range: Optional[str] = Query("1w"),
 ):
     """Menyajikan halaman HTML Log & Pelanggaran."""
-    try:
-        user = await get_current_user(request, response)
-        selected_time = time_range if time_range in TIME_RANGE_MAP else "1w"
-        
-        data = await get_logs_data(
-            current_user=user, 
-            action=action, 
-            time_range=selected_time
-        )
-        
-        return templates.TemplateResponse(
-            request=request,
-            name="logs.html",
-            context={
-                "user": user,
-                "violations_summary": data["violations_summary"],
-                "logs": data["logs"],
-                "selected_action": action or "",
-                "selected_time_range": selected_time
-            }
-        )
-    except HTTPException as e:
-        if e.status_code == status.HTTP_401_UNAUTHORIZED:
-            return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-        raise e
-    
-@app.get("/health", response_class=HTMLResponse)
-async def devices_page(request: Request, response: Response):
-    try:
-        user = await get_current_user(request, response)
+    user = request.state.user
+    selected_time = time_range if time_range in TIME_RANGE_MAP else "1w"
 
-        devices = await asyncio.to_thread(get_all_diagnostics)
-        print(f"[*] Data devices untuk {user.get('username')}: {devices}", flush=True)
-        return templates.TemplateResponse(
-            request=request,
-            name="health.html",
-            context={
-                "request": request,
-                "user": user,
-                "devices": devices,
-            },
-        )
-    except HTTPException as e:
-        if e.status_code == status.HTTP_401_UNAUTHORIZED:
-            return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-        raise e
+    data = await get_logs_data(
+        current_user=user,
+        action=action,
+        time_range=selected_time,
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="logs.html",
+        context={
+            "user": user,
+            "violations_summary": data["violations_summary"],
+            "logs": data["logs"],
+            "selected_action": action or "",
+            "selected_time_range": selected_time,
+        },
+    )
+
+@app.get("/health", response_class=HTMLResponse)
+@login_required("/login")
+async def devices_page(request: Request):
+    user = request.state.user
+    devices = await asyncio.to_thread(get_all_diagnostics)
+    print(f"[*] Data devices untuk {user.get('username')}: {devices}", flush=True)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="health.html",
+        context={
+            "request": request,
+            "user": user,
+            "devices": devices,
+        },
+    )
 
 @app.post("/upload-update")
 async def upload_ota_update(request: Request, file: UploadFile = File(...)):
