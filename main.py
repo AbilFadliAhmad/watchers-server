@@ -663,9 +663,11 @@ async def get_license(request: Request, response: Response):
 async def get_control(request: Request, response: Response):
     """Menyajikan halaman Web Dashboard dengan data manajemen terpadu."""
     user = request.state.user
-    mgmt_data = await get_management_data(user.get("role", ""))
-    print(f"[*] Data manajemen untuk groups {mgmt_data['groups']} ", flush=True)
-
+    role = user.get('role')
+    room = user.get('room')
+    print(user, 'hhh')
+    mgmt_data = await get_management_data(role, room)
+    print(mgmt_data)
     return templates.TemplateResponse(
         request=request,
         name="control.html",

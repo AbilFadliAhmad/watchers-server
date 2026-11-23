@@ -29,8 +29,10 @@
     <script src="{{ static_v('js/management_roles.js') }}" defer></script>
     <script src="{{ static_v('js/filter_and_multi_sellect.js') }}" defer></script>
     <script src="{{ static_v('js/edit_profile.js') }}" defer></script>
-    <script src="{{ static_v('js/file_explorer.js') }}" defer></script>
-    <script src="{{ static_v('js/student_chat.js') }}" defer></script>
+    {% if user.role == 'admin' %}
+        <script src="{{ static_v('js/file_explorer.js') }}" defer></script>
+        <script src="{{ static_v('js/student_chat.js') }}" defer></script>
+    {% endif %}
 </head>
 <!-- Container Fullscreen Viewer -->
 <div id="fullscreen-viewer" class="fixed inset-0 bg-black z-50 hidden flex-col items-center justify-center">
@@ -525,9 +527,11 @@
                         <button onclick="openUrlModal('{{ client.id }}', '{{ client.name }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                             <i data-lucide="globe" class="w-3.5 h-3.5 text-sky-400"></i> Kunjungi URL
                         </button>
+                        {% if user.role == 'admin' %}
                         <button onclick="openDirectoryExplorerModal('{{ client.id }}', '{{ client.name }}')" class="w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                             <i data-lucide="folder-search" class="w-3.5 h-3.5 text-cyan-400"></i> File Explorer
-                        </button>
+                        </button>                        
+                        {% endif %}
                         <button onclick="openMacroModal('{{ client.id }}', '{{ client.name }}')" class="hidden w-full text-left px-3.5 py-2 text-xs text-gray-200 hover:bg-indigo-600 hover:text-white flex items-center gap-2.5 transition">
                             <i data-lucide="keyboard" class="w-3.5 h-3.5 text-purple-400"></i> Ketik Otomatis
                         </button>

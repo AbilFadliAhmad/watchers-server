@@ -18,43 +18,66 @@ router = APIRouter(prefix="/api", tags=["Management"])
 DB_NAME = "watchers.db"
 
 # --- HELPER: GET ALL ROOMS & USERS ---
-async def get_management_data(user_role: str) -> dict:
-    """Mengambil seluruh data manajemen (rooms, roles, users, installers)
-    dalam 1 kali buka-tutup koneksi database.
+async def get_management_data(user_role: str, room: str | None = None) -> dict:
+    """Mengambil data manajemen (rooms, roles, users, installers) khusus admin,
+    serta daftar clients & groups untuk semua role (difilter berdasarkan room jika bukan 'all').
     """
-    empty_result = {"rooms": [], "roles": [], "users": [], "installers": []}
-
-    # Hak akses khusus manajemen
-    if user_role not in ["admin"]:
-        return empty_result
+    is_admin = user_role in ["admin"]
+    clean_room = (room or "").strip()
+    is_all_room = not clean_room or clean_room.lower() == "all"
 
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     try:
-        # 1. Ambil Rooms
+        # 1. Ambil Clients (Tetap dieksekusi untuk semua role, difilter jika room != 'all')
+        if is_all_room:
+            cursor.execute("SELECT * FROM clients ORDER BY name ASC")
+        else:
+            # Cocokkan tepat dengan nama room atau awalan hostname yang diikuti tanda '-' (misal: LAB1-PC01)
+            cursor.execute(
+                """
+                SELECT * FROM clients
+                WHERE LOWER(name) = LOWER(?)
+                   OR LOWER(name) LIKE LOWER(?)
+                ORDER BY name ASC
+                """,
+                (clean_room, f"{clean_room}-%"),
+            )
+        clients = [dict(row) for row in cursor.fetchall()]
+
+        # 2. Ambil Groups (Unik, pertahankan urutan)
+        seen_groups = {"all"}
+        groups = ["all"]
+        for client in clients:
+            raw_name = (client.get("name") or "").strip()
+            if raw_name:
+                prefix = raw_name.split("-")[0].strip()
+                if prefix and prefix.lower() not in seen_groups:
+                    seen_groups.add(prefix.lower())
+                    groups.append(prefix)
+
+        # Jika bukan admin, kembalikan hanya clients & groups tanpa data manajemen sensitif
+        if not is_admin:
+            return {
+                "rooms": [],
+                "roles": [],
+                "users": [],
+                "clients": clients,
+                "groups": groups,
+                "installers": [],
+            }
+
+        # 3. Ambil Rooms (Khusus Admin)
         cursor.execute("SELECT id, name FROM rooms ORDER BY id ASC")
         rooms = [dict(row) for row in cursor.fetchall()]
 
-        # 2. Ambil Roles
+        # 4. Ambil Roles (Khusus Admin)
         cursor.execute("SELECT id, name FROM roles ORDER BY id ASC")
         roles = [dict(row) for row in cursor.fetchall()]
 
-         # 3. Ambil Clients
-        cursor.execute("SELECT * FROM clients ORDER BY name ASC")
-        clients = [dict(row) for row in cursor.fetchall()]
-        print(clients, 'dadai')
-
-        # 4. Ambil Groups
-        groups = ["all"] + [
-            client["name"].split("-")[0].strip()
-            for client in clients
-            if isinstance(client, dict) and client.get("name")
-        ]
-
-
-        # 4. Ambil Users (JOIN ke Roles & Rooms)
+        # 5. Ambil Users (JOIN ke Roles & Rooms)
         cursor.execute("""
             SELECT 
                 u.id, 
@@ -68,7 +91,7 @@ async def get_management_data(user_role: str) -> dict:
         """)
         users = [dict(row) for row in cursor.fetchall()]
 
-        # 5. Ambil Installers OTA
+        # 6. Ambil Installers OTA
         cursor.execute(
             "SELECT name, version, url, sha256 FROM agent_installers ORDER BY id DESC"
         )
@@ -718,7 +741,8 @@ class UserUpdateSchema(BaseModel):
 
 # --- ENDPOINT 6: EDIT USER ---
 @router.put("/users/{user_id}", status_code=status.HTTP_200_OK)
-async def update_user(user_id: int, user_data: UserUpdateSchema):
+async def update_user(user_id: str, user_data: UserUpdateSchema):
+    print('userData, ', user_data)
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
