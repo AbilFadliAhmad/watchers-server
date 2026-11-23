@@ -8,13 +8,14 @@ import socketio
 import os
 import shutil
 from auth import (router as auth_router)
-from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_diagnostics, get_all_diagnostics, verify_client_password
+from client_helper import get_active_installer_config, update_clients_lock_status, upsert_client_and_diagnostics, get_all_diagnostics, verify_client_password, save_chat_message, get_chat_history_by_client
 from management import (router as management_router, get_management_data, fetch_stream_config_from_db, get_logs_data, record_activity_logs, fetch_domain_devices)
 from auth_middleware import get_current_user
 from typing import Optional
 from init_db import init_db
 from functools import wraps
 from verify_uninstall import router as uninstall_router
+import sqlite3
 
 # Init DB
 init_db()
@@ -166,9 +167,17 @@ async def on_stop_focus(sid, data):
 @sio.on("register_teacher") # type: ignore
 async def on_register_teacher(sid, data):
     """Mendaftarkan koneksi browser guru ke room 'all'."""
-    room_name = data.get('user').get('room')
-    await sio.enter_room(sid, room_name)
-    await sio.save_session(sid, {'room': room_name})
+    user_data = (data or {}).get("user") or {}
+    room_name = user_data.get("room")
+    role = user_data.get("role")
+
+    if room_name:
+        await sio.enter_room(sid, room_name)
+
+    if role == "admin":
+        await sio.enter_room(sid, "admins")
+
+    await sio.save_session(sid, {"room": room_name, "role": role})
     teacher_sids.add(sid)
 
 @sio.on("register_student") # type: ignore
@@ -255,8 +264,167 @@ async def on_student_frame(sid, data):
     
     await sio.emit("update_student_card", payload, room=target_rooms)
 
+@sio.on("directory_audit_response") # type: ignore
+async def on_directory_audit_response(sid, data):
+    if isinstance(data, dict):
+        data["sid"] = sid
+    await sio.emit("directory_audit_result", data, room='admins')
+
+@sio.on("student_chat_message") # type: ignore
+async def on_student_chat_message(sid, data):
+    """Menerima laporan/pesan SMS dari PC siswa -> simpan ke server -> teruskan ke admin."""
+    client_id = (data.get("device_id") or "").strip()
+    hostname = (data.get("hostname") or "Siswa").strip()
+    text = (data.get("message") or "").strip()
+
+    if not client_id or not text:
+        return {"ok": False}
+
+    saved = await asyncio.to_thread(
+        save_chat_message,
+        client_id=client_id,
+        sender_role="student",
+        sender_name=hostname,
+        message=text,
+        is_read=0,
+    )
+    saved["sid"] = sid
+
+    # Broadcast ke seluruh admin/guru yang sedang membuka dashboard
+    await sio.emit("new_student_chat", saved, room="admins")
+    # Konfirmasi balik ke agent siswa agar status pesan berubah menjadi terkirim
+    return {"ok": True, "message_data": saved}
+
+
+@sio.on("admin_chat_reply") # type: ignore
+async def on_admin_chat_reply(sid, data):
+    """Menerima balasan dari dashboard admin -> simpan ke server -> kirim ke PC siswa."""
+    client_id = (data.get("client_id") or "").strip()
+    admin_name = (data.get("admin_name") or "Guru / Admin").strip()
+    text = (data.get("message") or "").strip()
+
+    if not client_id or not text:
+        return {"ok": False}
+
+    saved = await asyncio.to_thread(
+        save_chat_message,
+        client_id=client_id,
+        sender_role="admin",
+        sender_name=admin_name,
+        message=text,
+        is_read=1,
+    )
+
+    target_sid = connected_students.get(client_id, {}).get("sid")
+    if target_sid:
+        await sio.emit("chat_reply", saved, to=target_sid)
+
+    # 2. Sinkronkan juga ke tab admin lain jika ada lebih dari satu guru login
+    await sio.emit("new_student_chat", saved, room="admins")
+    return {"ok": True, "message_data": saved}
+
+
+@sio.on("request_chat_history") # type: ignore
+async def on_request_chat_history(sid, data):
+    client_id = (data.get("client_id") or data.get("device_id") or "").strip()
+    requester = (data.get("role") or "admin").strip()
+    if not client_id:
+        return {"ok": False, "messages": []}
+
+    def _fetch_and_mark():
+        conn = sqlite3.connect('watchers.db')
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        try:
+            if requester == "admin":
+                cur.execute(
+                    "UPDATE chat_messages SET is_read = 1 WHERE client_id = ? AND sender_role = 'student' AND is_read = 0",
+                    (client_id,),
+                )
+            else:
+                cur.execute(
+                    "UPDATE chat_messages SET is_read = 1 WHERE client_id = ? AND sender_role = 'admin' AND is_read = 0",
+                    (client_id,),
+                )
+            conn.commit()
+
+            cur.execute(
+                """
+                SELECT id, client_id, sender_role, sender_name, message, is_read, created_at
+                FROM chat_messages
+                WHERE client_id = ?
+                ORDER BY id DESC
+                LIMIT 50
+                """,
+                (client_id,),
+            )
+            rows = [dict(r) for r in cur.fetchall()]
+            rows.reverse()
+            return rows
+        finally:
+            cur.close()
+            conn.close()
+
+    history = await asyncio.to_thread(_fetch_and_mark)
+
+    if requester == "student":
+        await sio.emit("chat_messages_read", {"client_id": client_id}, room="admins")
+
+    return {"ok": True, "client_id": client_id, "messages": history}
+
+@sio.on("get_chat_overview") # type: ignore
+async def on_get_chat_overview(sid, data=None):
+    """Mengambil 10 pesan terakhir per client_id dan menghitung is_read kosong/false pada 10 pesan tersebut."""
+    def _query_overview():
+        conn = sqlite3.connect('watchers.db')
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                WITH recent_10 AS (
+                    SELECT
+                        id,
+                        client_id,
+                        sender_role,
+                        sender_name,
+                        message,
+                        is_read,
+                        created_at,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY client_id
+                            ORDER BY id DESC
+                        ) AS rn
+                    FROM chat_messages
+                )
+                SELECT
+                    r.client_id,
+                    r.id AS last_id,
+                    r.sender_role,
+                    r.sender_name,
+                    r.message,
+                    r.created_at,
+                    (
+                        SELECT COUNT(*)
+                        FROM recent_10 sub
+                        WHERE sub.client_id = r.client_id
+                          AND sub.rn <= 10
+                          AND sub.sender_role = 'student'
+                          AND (sub.is_read IS NULL OR sub.is_read = 0)
+                    ) AS unread_in_last_10
+                FROM recent_10 r
+                WHERE r.rn = 1
+                ORDER BY r.id DESC
+            """)
+            return [dict(r) for r in cur.fetchall()]
+        finally:
+            cur.close()
+            conn.close()
+
+    items = await asyncio.to_thread(_query_overview)
+    return {"ok": True, "items": items}
+
 @sio.on("send_command")  # type: ignore
-async def on_send_command(sid, data):
+async def on_send_command(_, data):
     """
     Menerima perintah remot dari Web Dashboard Guru dan meneruskannya ke Client Siswa.
     Payload: {"device_ids": ["DEVICE_ID_1", ...], "executed_by": "USER_ID", "command": {"action": "message", ...}}
@@ -310,11 +478,9 @@ async def on_send_command(sid, data):
     for target_sid in target_sids:
         await sio.emit("command", command, to=target_sid)
 
-# Menyimpan timestamp mulai (detik presisi tinggi) per device_id
-_diag_timers: dict[str, float] = {}
-
 @sio.on("request_all_diagnostics")  # type: ignore
 async def on_request_all_diagnostics(sid, data=None):
+    _diag_timers: dict[str, float] = {}
     target_id = data.get("device_id", "all") if isinstance(data, dict) else "all"
     include_apps = data.get("include_apps", True) if isinstance(data, dict) else True
 
@@ -330,9 +496,9 @@ async def on_request_all_diagnostics(sid, data=None):
             _diag_timers[target_id] = now
             await sio.emit("request_pc_diagnostics", {"include_apps": include_apps}, to=student["sid"])
 
-
 @sio.on("report_pc_diagnostics")  # type: ignore
 async def on_report_pc_diagnostics(sid, data):
+    _diag_timers: dict[str, float] = {}
     t_recv = time.perf_counter()
 
     if not isinstance(data, dict):
@@ -392,7 +558,6 @@ async def on_verify_unlock_password(sid, data):
         return {"success": False, "message": "Device ID tidak terdeteksi."}
 
     await verify_client_password(input_password=input_password, device_id=device_id, sid=sid, sio=sio)
-
 
 # --- FASTAPI DECORATOR ---
 def _copy_set_cookies(src_response: Response, target_response):

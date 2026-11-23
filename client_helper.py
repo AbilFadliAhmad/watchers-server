@@ -307,3 +307,56 @@ def parse_version_from_filename(filename: str) -> str:
     if match:
         return match.group(1)
     return "1.0.0"
+
+def save_chat_message(client_id: str, sender_role: str, sender_name: str, message: str, is_read: int = 0) -> dict:
+    """Menyimpan pesan chat siswa/admin ke watchers.db dan mengembalikan record lengkapnya."""
+    conn = sqlite3.connect("watchers.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO chat_messages (client_id, sender_role, sender_name, message, is_read)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (client_id, sender_role, sender_name, message, is_read),
+        )
+        msg_id = cursor.lastrowid
+        conn.commit()
+
+        cursor.execute("SELECT * FROM chat_messages WHERE id = ?", (msg_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else {}
+    finally:
+        cursor.close()
+        conn.close()
+
+def get_chat_history_by_client(client_id: str, limit: int = 50, mark_read_by_admin: bool = False) -> list[dict]:
+    """Mengambil riwayat percakapan terakhir untuk satu client_id dari watchers.db."""
+    conn = sqlite3.connect("watchers.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    try:
+        if mark_read_by_admin:
+            cursor.execute(
+                "UPDATE chat_messages SET is_read = 1 WHERE client_id = ? AND sender_role = 'student' AND is_read = 0",
+                (client_id,),
+            )
+            conn.commit()
+
+        cursor.execute(
+            """
+            SELECT id, client_id, sender_role, sender_name, message, is_read, created_at
+            FROM chat_messages
+            WHERE client_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (client_id, limit),
+        )
+        rows = [dict(r) for r in cursor.fetchall()]
+        rows.reverse()  # Urutkan dari terlama ke terbaru untuk tampilan UI chat
+        return rows
+    finally:
+        cursor.close()
+        conn.close()

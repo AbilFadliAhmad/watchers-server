@@ -189,6 +189,24 @@ def init_db():
             """,
             (1, hashed_password),
         )
+
+    # 12. TABEL BARU: fitur chatting)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id TEXT NOT NULL,
+            sender_role TEXT NOT NULL,      -- 'student' atau 'admin'
+            sender_name TEXT NOT NULL,
+            message TEXT NOT NULL,
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+        )
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_chat_client_created
+        ON chat_messages (client_id, id DESC)
+    """)
     
     conn.commit()
     conn.close()
